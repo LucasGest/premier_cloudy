@@ -606,7 +606,7 @@
     $('login').hidden = false;
     const err = e?.retire ? 'acces' : new URLSearchParams(location.search).get('erreur');
     const messages = {
-      acces: "Accès refusé : il faut le rôle Premier ou IGL sur le serveur CloudyCat.",
+      acces: "Accès refusé : il faut le rôle Premier sur le serveur CloudyCat.",
       connexion: 'La connexion avec Discord a échoué, réessayez.'
     };
     if (messages[err]) {

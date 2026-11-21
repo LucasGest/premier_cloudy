@@ -4,7 +4,7 @@ Site privé de l'équipe Premier : strats par map, compos d'agents, matchs et de
 
 ## Accès
 
-Connexion avec Discord. Le site vérifie, avec le token du bot, que le joueur a le rôle 🏆・Premier ou 🎙️・IGL sur CloudyCat. Tous les membres de l'équipe lisent et modifient. Une session dure 12 heures. Le rôle est revérifié auprès de Discord au moins toutes les 5 minutes : le retirer coupe l'accès au site dans ce délai.
+Connexion avec Discord. Le site vérifie, avec le token du bot, que le joueur a le rôle 🏆・Premier sur CloudyCat ; sans lui, pas d'accès (l'IGL doit donc aussi l'avoir). Tous les membres de l'équipe lisent et modifient. Une session dure 12 heures. Le rôle est revérifié auprès de Discord au moins toutes les 5 minutes : le retirer coupe l'accès au site dans ce délai.
 
 ## Essayer sans rien installer
 
@@ -39,7 +39,7 @@ Firestore, sous `premierStrats/{joueurs|maps|strats|compos|matchs}/items`. Chaqu
 
 - **Connexion** : Discord OAuth avec un `state` à usage unique ; aucun mot de passe stocké.
 - **Session** : cookie `__Host-` signé (HMAC), `HttpOnly`, `Secure`, `SameSite=Lax`, 12 heures. Changer `SESSION_SECRET` déconnecte tout le monde.
-- **Accès** : rôle Premier ou IGL revérifié sur Discord à chaque requête (résultat gardé 5 minutes).
+- **Accès** : rôle Premier revérifié sur Discord à chaque requête (résultat gardé 5 minutes).
 - **Écritures** : en-tête `X-Premier` obligatoire (bloque les formulaires piégés d'autres sites), champs validés et tronqués côté serveur, 30 Ko maximum par écriture, 40 écritures par minute et par joueur. Chacun ne modifie que sa propre fiche joueur.
 - **Navigateur** : politique de sécurité du contenu stricte (scripts du site uniquement, images de Discord et du CDN Valorant seulement), site impossible à afficher dans un cadre, HTTPS forcé, non indexé par les moteurs de recherche.
 - **Affichage** : tout le texte saisi est inséré comme texte, jamais comme HTML.
