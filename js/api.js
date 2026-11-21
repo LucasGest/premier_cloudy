@@ -59,6 +59,13 @@
       return { id: docId, data: saved };
     },
 
+    // Import des matchs Premier depuis le jeu. force : l'administrateur passe
+    // outre le délai de 30 minutes entre deux imports.
+    async importMatches(force) {
+      if (DEMO) return { matchs: {}, added: 0, total: 0 };
+      return call('POST', '/api/import', { force: Boolean(force) });
+    },
+
     async logout() {
       if (!DEMO) await call('POST', '/api/logout');
     },

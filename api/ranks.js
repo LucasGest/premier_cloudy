@@ -17,7 +17,7 @@ module.exports = async (req, res) => {
     const stale = snap.docs.filter((doc) => {
       const p = doc.data();
       // Fiche sans bannière (enregistrée avant son ajout) : relue tout de suite.
-      return p.riotId && (!('carte' in p) || !(Date.now() - Date.parse(p.rankCheckedAt || 0) < MAX_AGE_MS));
+      return p.riotId && (!('carte' in p) || !('puuid' in p) || !(Date.now() - Date.parse(p.rankCheckedAt || 0) < MAX_AGE_MS));
     });
 
     const updated = {};
@@ -29,6 +29,7 @@ module.exports = async (req, res) => {
         if (live?.rang) Object.assign(patch, { rang: live.rang, rangAuto: true });
         if (live?.carte) patch.carte = live.carte;
         if (live?.niveau != null) patch.niveau = live.niveau;
+        patch.puuid = live?.puuid || doc.data().puuid || null;
         await doc.ref.update(patch);
         updated[doc.id] = { ...doc.data(), ...patch };
       })

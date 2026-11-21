@@ -409,7 +409,17 @@
     const all = stratsOf(id);
     const shown = state.cote === 'tous' ? all : all.filter(([, s]) => s.cote === state.cote);
 
-    const head = mapBanner(id, 'sheet-head map-banner', h('div', null, h('h2', null, MAP_NAME[id]), h('span', { class: 'meta' }, `${all.length} strat${all.length > 1 ? 's' : ''}`)));
+    const rec = recordOf(id);
+    const head = mapBanner(
+      id,
+      'sheet-head map-banner',
+      h(
+        'div',
+        null,
+        h('h2', null, MAP_NAME[id]),
+        h('span', { class: 'meta' }, `${all.length} strat${all.length > 1 ? 's' : ''}${rec.n ? ` · ${rec.v} V ${rec.d} D en match (${rec.pct} %)` : ''}`)
+      )
+    );
 
     const compoStrip = h(
       'div',
@@ -567,17 +577,92 @@
     );
   }
 
+  // Bilan victoires/défaites, global ou pour une map.
+  function recordOf(mapId) {
+    const list = Object.values(state.data.matchs).filter((m) => !mapId || m.map === mapId);
+    const v = list.filter((m) => m.scoreNous > m.scoreEux).length;
+    const d = list.filter((m) => m.scoreNous < m.scoreEux).length;
+    return { v, d, n: list.length, pct: list.length ? Math.round((v / list.length) * 100) : null };
+  }
+
+  function statsTable(joueurs) {
+    return h(
+      'table',
+      { class: 'stats' },
+      h('thead', null, h('tr', null, ['Joueur', 'K / D / A', 'HS', 'ACS'].map((t) => h('th', null, t)))),
+      h(
+        'tbody',
+        null,
+        joueurs.map((j) =>
+          h(
+            'tr',
+            { class: j.equipe ? 'ours' : null },
+            h('td', null, h('span', { class: 'slot-agent' }, agentIcon(j.agent), j.nom)),
+            h('td', null, `${j.kills} / ${j.deaths} / ${j.assists}`),
+            h('td', null, `${j.hs} %`),
+            h('td', null, j.acs)
+          )
+        )
+      )
+    );
+  }
+
+  async function importNow() {
+    toast('Import en cours…');
+    try {
+      const res = await Api.importMatches(true);
+      Object.assign(state.data.matchs, res.matchs || {});
+      render();
+      toast(res.total ? `${res.total} match${res.total > 1 ? 's' : ''} trouvé${res.total > 1 ? 's' : ''}, dont ${res.added} nouveau${res.added > 1 ? 'x' : ''}` : 'Aucun match Premier trouvé pour l\'équipe');
+    } catch (e) {
+      handleError(e);
+    }
+  }
+
   function viewMatchs() {
     const entries = Object.entries(state.data.matchs).sort((a, b) => (b[1].date || '').localeCompare(a[1].date || ''));
-    const wins = entries.filter(([, m]) => m.scoreNous > m.scoreEux).length;
-    const losses = entries.filter(([, m]) => m.scoreNous < m.scoreEux).length;
+    const total = recordOf();
 
     const header = h(
       'div',
       { class: 'record' },
-      h('div', null, h('strong', null, `${wins} V · ${losses} D`), h('div', { class: 'meta' }, `${entries.length} match${entries.length > 1 ? 's' : ''} joué${entries.length > 1 ? 's' : ''}`)),
-      state.editing !== 'matchs:nouveau' && can('matchs') && h('button', { class: 'btn btn-primary', onclick: () => ((state.editing = 'matchs:nouveau'), render()) }, 'Ajouter un match')
+      h(
+        'div',
+        null,
+        h('strong', null, `${total.v} V · ${total.d} D`),
+        h('div', { class: 'meta' }, `${total.n} match${total.n > 1 ? 's' : ''} joué${total.n > 1 ? 's' : ''}${total.pct != null ? ` · ${total.pct} % de victoires` : ''}`)
+      ),
+      h(
+        'div',
+        { class: 'toolbar' },
+        can('matchs') && h('button', { class: 'btn', onclick: importNow }, 'Importer maintenant'),
+        state.editing !== 'matchs:nouveau' && can('matchs') && h('button', { class: 'btn btn-primary', onclick: () => ((state.editing = 'matchs:nouveau'), render()) }, 'Ajouter un match')
+      )
     );
+    const note = h('p', { class: 'meta import-note' }, "Les matchs Premier de l'équipe s'importent tout seuls depuis le jeu (score, map, stats), dès que 3 joueurs du site y ont joué ensemble. Le debrief reste à écrire.");
+
+    // Taux de victoire par map, pour les maps déjà jouées.
+    const played = window.MAPS.map((m) => ({ m, r: recordOf(m.id) })).filter((x) => x.r.n > 0);
+    const winrates =
+      played.length > 0 &&
+      h(
+        'section',
+        { class: 'winrates' },
+        h('h2', { class: 'section-title' }, 'Par map'),
+        h(
+          'div',
+          { class: 'winrate-grid' },
+          played.map(({ m, r }) =>
+            mapBanner(
+              m.id,
+              'winrate map-banner',
+              h('strong', null, m.nom),
+              h('span', { class: `winrate-pct ${r.pct >= 50 ? 'good' : 'bad'}` }, `${r.pct} %`),
+              h('span', { class: 'meta' }, `${r.v} V · ${r.d} D`)
+            )
+          )
+        )
+      );
 
     const list = entries.map(([id, m]) => {
       if (state.editing === `matchs:${id}`) return matchForm(id, m);
@@ -590,12 +675,18 @@
           { class: 'match-row' },
           MAP_BY_ID[m.map] && h('img', { class: 'match-thumb', src: MAP_BY_ID[m.map].banniere, alt: '', loading: 'lazy' }),
           h('span', { class: 'score' }, `${m.scoreNous} - ${m.scoreEux}`),
-          h('div', { class: 'match-info' }, h('strong', null, `${MAP_NAME[m.map] || m.map}${m.adversaire ? ' contre ' + m.adversaire : ''}`), h('span', { class: 'meta' }, new Date(m.date + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }))),
-          can('matchs') && h('button', { class: 'btn', onclick: () => ((state.editing = `matchs:${id}`), render()) }, 'Modifier'),
+          h(
+            'div',
+            { class: 'match-info' },
+            h('strong', null, `${MAP_NAME[m.map] || m.map}${m.adversaire ? ' contre ' + m.adversaire : ''}`),
+            h('span', { class: 'meta' }, new Date(m.date + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }), m.source === 'auto' ? ' · importé du jeu' : '')
+          ),
+          can('matchs') && h('button', { class: 'btn', onclick: () => ((state.editing = `matchs:${id}`), render()) }, m.source === 'auto' ? 'Debrief' : 'Modifier'),
           can('matchs') && h('button', { class: 'btn btn-danger', onclick: () => removeDoc('matchs', id, 'Supprimer ce match ?', 'Match supprimé') }, 'Supprimer')
         ),
+        m.joueurs?.length ? h('details', null, h('summary', null, 'Stats du match'), statsTable(m.joueurs)) : null,
         m.debrief ? h('details', null, h('summary', null, 'Debrief'), h('p', null, m.debrief)) : null,
-        metaLine(m)
+        m.source !== 'auto' || m.debrief ? metaLine(m) : null
       );
     });
 
@@ -603,7 +694,14 @@
       'div',
       null,
       header,
-      h('div', { class: 'matches' }, state.editing === 'matchs:nouveau' && matchForm(null, {}), list.length ? list : state.editing !== 'matchs:nouveau' && h('p', { class: 'empty-text' }, 'Aucun match enregistré.'))
+      note,
+      winrates,
+      h(
+        'div',
+        { class: 'matches' },
+        state.editing === 'matchs:nouveau' && matchForm(null, {}),
+        list.length ? list : state.editing !== 'matchs:nouveau' && h('p', { class: 'empty-text' }, 'Aucun match enregistré.')
+      )
     );
   }
 
@@ -669,13 +767,25 @@
       return;
     }
 
-    // Les rangs se rafraîchissent en arrière-plan, sans bloquer l'affichage.
+    // En arrière-plan, sans bloquer l'affichage : rangs d'abord (ils donnent
+    // l'identifiant Riot de chacun), puis import des matchs Premier.
+    // Pas de nouveau rendu pendant une saisie, pour ne rien effacer.
+    const quietRender = () => {
+      if (!state.editing && !(state.view === 'equipe' && !state.data.joueurs[state.me.id])) render();
+    };
     try {
       const { joueurs } = await Api.refreshRanks();
-      if (Object.keys(joueurs || {}).length === 0) return;
-      Object.assign(state.data.joueurs, joueurs);
-      // Pas de nouveau rendu pendant une saisie, pour ne rien effacer.
-      if (!state.editing && !(state.view === 'equipe' && !state.data.joueurs[state.me.id])) render();
+      if (Object.keys(joueurs || {}).length) {
+        Object.assign(state.data.joueurs, joueurs);
+        quietRender();
+      }
+    } catch {}
+    try {
+      const { matchs } = await Api.importMatches(false);
+      if (Object.keys(matchs || {}).length) {
+        Object.assign(state.data.matchs, matchs);
+        quietRender();
+      }
     } catch {}
   })();
 })();

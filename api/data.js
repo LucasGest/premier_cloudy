@@ -138,12 +138,19 @@ module.exports = async (req, res) => {
           rangAuto: Boolean(live?.rang),
           carte: live?.carte || null,
           niveau: live?.niveau ?? null,
+          puuid: live?.puuid || null,
           rankCheckedAt: new Date().toISOString(),
           discord: user.name,
           avatar: user.avatar
         });
       }
-      await items(collection).doc(docId).set(saved);
+      const ref = items(collection).doc(docId);
+      if (collection === 'matchs') {
+        // Fusion : un match importé garde ses stats de jeu quand on écrit son debrief.
+        await ref.set(saved, { merge: true });
+        return res.json({ id: docId, data: (await ref.get()).data() });
+      }
+      await ref.set(saved);
       return res.json({ id: docId, data: saved });
     }
 

@@ -27,8 +27,8 @@ Ouvrir `index.html` dans le navigateur (double-clic) : mode démo, les données 
 | `js/donnees.js` | Pool de maps et agents avec leurs visuels officiels, généré depuis valorant-api.com ; à régénérer quand Riot change le pool. |
 | `js/api.js` | Lecture et écriture des données (serveur, ou navigateur en mode démo). |
 | `js/app.js` | L'interface : onglets Équipe, Maps, Compos, Matchs. |
-| `api/` | Fonctions Vercel : `login`, `callback`, `logout` (connexion Discord), `me`, `data` (lecture et écriture), `ranks` (relit les rangs en jeu de plus de 6 heures, à chaque ouverture du site). |
-| `lib/` | Code partagé par les fonctions : session signée, contrôle d'accès, Firebase, rang via HenrikDev. |
+| `api/` | Fonctions Vercel : `login`, `callback`, `logout` (connexion Discord), `me`, `data` (lecture et écriture), `ranks` (relit les rangs en jeu de plus de 6 heures, à chaque ouverture du site), `import` (importe les matchs Premier de l'équipe, au plus toutes les 30 minutes). |
+| `lib/` | Code partagé par les fonctions : session signée, contrôle d'accès, Firebase, rang et matchs via HenrikDev. |
 | `vercel.json` | En-têtes de sécurité envoyés avec chaque page. |
 | `.env.example` | Les variables à renseigner dans Vercel. |
 
@@ -38,6 +38,10 @@ Ouvrir `index.html` dans le navigateur (double-clic) : mode démo, les données 
 2. Dans Vercel > Settings > Environment Variables, renseigner les variables de `.env.example`.
 3. Dans le portail développeur Discord, application CloudyBot > OAuth2 > Redirects, ajouter `https://<adresse-du-site>/api/callback`.
 4. Redéployer.
+
+## Matchs importés
+
+À l'ouverture du site (au plus toutes les 30 minutes), les historiques Premier des joueurs sont lus sur HenrikDev. Un match est retenu si au moins 3 joueurs du site étaient dans la même équipe : les matchs joués avec une ancienne équipe ne remontent pas. Score, map, adversaire et stats (K/D/A, % de headshots, ACS) viennent du jeu ; le debrief s'écrit à la main et n'est jamais écrasé. L'onglet Matchs affiche aussi le taux de victoire par map, repris sur chaque fiche de map.
 
 ## Données
 
