@@ -88,6 +88,13 @@
     }
   }
 
+  // Mêmes droits que le serveur (qui reste seul juge) : sert à masquer les boutons inutiles.
+  function can(collection) {
+    if (collection === 'strats' || collection === 'compos') return Boolean(state.me?.igl || state.me?.admin);
+    if (collection === 'matchs') return Boolean(state.me?.admin);
+    return true;
+  }
+
   async function removeDoc(collection, id, question, done) {
     if (!confirm(question)) return;
     try {
@@ -102,7 +109,7 @@
 
   function handleError(e) {
     if (e.auth) return showLogin(e);
-    toast("Échec de l'enregistrement, réessayez");
+    toast(e.message === 'réservé' ? (e.collection === 'matchs' ? "Réservé à l'administrateur" : "Réservé à l'IGL") : "Échec de l'enregistrement, réessayez");
   }
 
   // ---------- Équipe ----------
@@ -389,8 +396,8 @@
         h(
           'div',
           { class: 'toolbar' },
-          h('button', { class: 'btn', onclick: () => ((state.editing = `strats:${id}`), render()) }, 'Modifier'),
-          h('button', { class: 'btn btn-danger', onclick: () => removeDoc('strats', id, `Supprimer la strat « ${s.nom} » ?`, 'Strat supprimée') }, 'Supprimer')
+          can('strats') && h('button', { class: 'btn', onclick: () => ((state.editing = `strats:${id}`), render()) }, 'Modifier'),
+          can('strats') && h('button', { class: 'btn btn-danger', onclick: () => removeDoc('strats', id, `Supprimer la strat « ${s.nom} » ?`, 'Strat supprimée') }, 'Supprimer')
         )
       )
     );
@@ -430,7 +437,7 @@
         'div',
         { class: 'block-head' },
         h('h3', null, 'Strats'),
-        !adding && h('button', { class: 'btn btn-primary', onclick: () => ((state.editing = 'strats:nouveau'), render()) }, 'Nouvelle strat')
+        !adding && can('strats') && h('button', { class: 'btn btn-primary', onclick: () => ((state.editing = 'strats:nouveau'), render()) }, 'Nouvelle strat')
       ),
       filters,
       adding && stratForm(null, {}, id),
@@ -490,7 +497,7 @@
           return h(
             'article',
             { class: 'card map-card' },
-            mapBanner(m.id, 'card-head map-banner', h('h3', null, m.nom), h('button', { class: 'btn', onclick: () => ((state.editing = `compos:${m.id}`), render()) }, 'Modifier')),
+            mapBanner(m.id, 'card-head map-banner', h('h3', null, m.nom), can('compos') && h('button', { class: 'btn', onclick: () => ((state.editing = `compos:${m.id}`), render()) }, 'Modifier')),
             filled
               ? h('ul', { class: 'slots' }, slots.map((s) => h('li', null, h('span', { class: 'slot-agent' }, agentIcon(s.agent), s.agent || '-'), h('span', { class: 'player' }, s.joueur || ''))))
               : h('p', { class: 'empty-text' }, 'Pas de compo.'),
@@ -569,7 +576,7 @@
       'div',
       { class: 'record' },
       h('div', null, h('strong', null, `${wins} V · ${losses} D`), h('div', { class: 'meta' }, `${entries.length} match${entries.length > 1 ? 's' : ''} joué${entries.length > 1 ? 's' : ''}`)),
-      state.editing !== 'matchs:nouveau' && h('button', { class: 'btn btn-primary', onclick: () => ((state.editing = 'matchs:nouveau'), render()) }, 'Ajouter un match')
+      state.editing !== 'matchs:nouveau' && can('matchs') && h('button', { class: 'btn btn-primary', onclick: () => ((state.editing = 'matchs:nouveau'), render()) }, 'Ajouter un match')
     );
 
     const list = entries.map(([id, m]) => {
@@ -584,8 +591,8 @@
           MAP_BY_ID[m.map] && h('img', { class: 'match-thumb', src: MAP_BY_ID[m.map].banniere, alt: '', loading: 'lazy' }),
           h('span', { class: 'score' }, `${m.scoreNous} - ${m.scoreEux}`),
           h('div', { class: 'match-info' }, h('strong', null, `${MAP_NAME[m.map] || m.map}${m.adversaire ? ' contre ' + m.adversaire : ''}`), h('span', { class: 'meta' }, new Date(m.date + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }))),
-          h('button', { class: 'btn', onclick: () => ((state.editing = `matchs:${id}`), render()) }, 'Modifier'),
-          h('button', { class: 'btn btn-danger', onclick: () => removeDoc('matchs', id, 'Supprimer ce match ?', 'Match supprimé') }, 'Supprimer')
+          can('matchs') && h('button', { class: 'btn', onclick: () => ((state.editing = `matchs:${id}`), render()) }, 'Modifier'),
+          can('matchs') && h('button', { class: 'btn btn-danger', onclick: () => removeDoc('matchs', id, 'Supprimer ce match ?', 'Match supprimé') }, 'Supprimer')
         ),
         m.debrief ? h('details', null, h('summary', null, 'Debrief'), h('p', null, m.debrief)) : null,
         metaLine(m)
@@ -643,6 +650,8 @@
       state.data = await Api.all();
       for (const k of ['joueurs', 'maps', 'strats', 'compos', 'matchs']) state.data[k] = state.data[k] || {};
       $('user-name').textContent = me.name;
+      const roleTag = me.admin ? 'Admin' : me.igl ? 'IGL' : null;
+      if (roleTag && !Api.demo) $('user-name').after(h('span', { class: 'tag' }, roleTag));
       if (me.avatar) {
         $('user-avatar').src = me.avatar;
         $('user-avatar').hidden = false;

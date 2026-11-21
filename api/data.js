@@ -70,6 +70,16 @@ function tooManyWrites(userId) {
   return recent.length > WRITES_PER_MIN;
 }
 
+// Qui peut écrire quoi. Les autres lisent seulement.
+// joueurs : chacun sa fiche ; maps (notes générales) : toute l'équipe.
+const CAN_WRITE = {
+  joueurs: () => true,
+  maps: () => true,
+  strats: (u) => u.igl,
+  compos: (u) => u.igl,
+  matchs: (u) => u.admin
+};
+
 // Champs sans lesquels un document n'a pas de sens.
 const REQUIRED = { strats: ['map', 'nom', 'cote'], matchs: ['date', 'map'] };
 
@@ -110,6 +120,7 @@ module.exports = async (req, res) => {
       }
       const { collection, id, data } = req.body || {};
       if (!SCHEMAS[collection]) return res.status(400).json({ error: 'collection inconnue' });
+      if (!CAN_WRITE[collection](user)) return res.status(403).json({ error: 'réservé' });
 
       // Chacun ne modifie que sa propre fiche joueur, quel que soit l'id envoyé.
       const docId =
@@ -139,6 +150,7 @@ module.exports = async (req, res) => {
     if (req.method === 'DELETE') {
       const { collection, id } = req.query;
       if (!['strats', 'matchs'].includes(collection) || !/^[\w-]{1,40}$/.test(id || '')) return res.status(400).json({ error: 'suppression impossible' });
+      if (!CAN_WRITE[collection](user)) return res.status(403).json({ error: 'réservé' });
       await items(collection).doc(id).delete();
       return res.json({ ok: true });
     }

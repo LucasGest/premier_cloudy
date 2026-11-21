@@ -30,7 +30,7 @@
       if (body.error === 'accès retiré') throw Object.assign(new Error('accès retiré'), { auth: true, retire: true });
     }
     const json = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(json.error || 'erreur');
+    if (!res.ok) throw Object.assign(new Error(json.error || 'erreur'), { collection: body?.collection || new URLSearchParams(url.split('?')[1]).get('collection') });
     return json;
   }
 
@@ -38,7 +38,7 @@
     demo: DEMO,
 
     async me() {
-      if (DEMO) return { id: 'demo', name: 'Démo', avatar: null };
+      if (DEMO) return { id: 'demo', name: 'Démo', avatar: null, igl: true, admin: true };
       return call('GET', '/api/me');
     },
 

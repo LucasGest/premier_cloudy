@@ -4,7 +4,15 @@ Site privé de l'équipe Premier : strats par map, compos d'agents, matchs et de
 
 ## Accès
 
-Connexion avec Discord. Le site vérifie, avec le token du bot, que le joueur a le rôle 🏆・Premier sur CloudyCat ; sans lui, pas d'accès (l'IGL doit donc aussi l'avoir). Tous les membres de l'équipe lisent et modifient. Une session dure 12 heures. Le rôle est revérifié auprès de Discord au moins toutes les 5 minutes : le retirer coupe l'accès au site dans ce délai.
+Connexion avec Discord. Le site vérifie, avec le token du bot, que le joueur a le rôle 🏆・Premier sur CloudyCat ; sans lui, pas d'accès (l'IGL doit donc aussi l'avoir). Toute l'équipe lit tout.
+
+| Qui modifie | Quoi |
+|---|---|
+| Chaque joueur | Sa propre fiche, les notes générales des maps |
+| L'IGL (rôle 🎙️・IGL) | Les strats et les compos |
+| L'administrateur du site | Tout, dont les matchs |
+
+Le rôle IGL et l'administrateur sont définis dans `lib/access.js`. Le serveur applique ces droits ; l'interface masque seulement les boutons inutiles. Une session dure 12 heures. Le rôle est revérifié auprès de Discord au moins toutes les 5 minutes : le retirer coupe l'accès au site dans ce délai.
 
 ## Essayer sans rien installer
 
