@@ -1,6 +1,7 @@
 const { requireUser } = require('../lib/access');
 const { items, db } = require('../lib/firebase');
 const { fetchTeamMatches } = require('../lib/matches');
+const { postResult } = require('../lib/discord');
 
 // POST /api/import : importe les matchs Premier de l'équipe depuis HenrikDev.
 // Appelé à l'ouverture du site (au plus toutes les 30 minutes, tous joueurs
@@ -48,6 +49,15 @@ module.exports = async (req, res) => {
       result[id] = merged;
     }
     if (found.length) await batch.commit();
+
+    // Résultat posté sur Discord pour chaque nouveau match récent (moins de
+    // 3 jours) : un premier import d'historique ne déclenche pas de rafale.
+    const recent = (d) => Date.now() - Date.parse(`${d}T12:00:00Z`) < 3 * 24 * 3600 * 1000;
+    for (const { id, data } of found) {
+      if (!result[id].postedAt && recent(data.date)) {
+        if (await postResult(result[id]).catch(() => false)) await items('matchs').doc(id).update({ postedAt: new Date().toISOString() });
+      }
+    }
 
     res.json({ matchs: result, added, total: found.length });
   } catch (error) {

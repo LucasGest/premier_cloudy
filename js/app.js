@@ -90,7 +90,7 @@
 
   // Mêmes droits que le serveur (qui reste seul juge) : sert à masquer les boutons inutiles.
   function can(collection) {
-    if (collection === 'strats' || collection === 'compos') return Boolean(state.me?.igl || state.me?.admin);
+    if (['strats', 'compos', 'reglages'].includes(collection)) return Boolean(state.me?.igl || state.me?.admin);
     if (collection === 'matchs') return Boolean(state.me?.admin);
     return true;
   }
@@ -212,6 +212,73 @@
     }
   }
 
+  // Moyennes du joueur sur les matchs Premier importés.
+  function playerStats(id) {
+    const lines = Object.values(state.data.matchs).flatMap((m) => (m.joueurs || []).filter((j) => j.id === id));
+    if (!lines.length) return null;
+    const sum = (k) => lines.reduce((t, j) => t + (j[k] || 0), 0);
+    const avg = (k) => Math.round(sum(k) / lines.length);
+    const kd = sum('deaths') ? (sum('kills') / sum('deaths')).toFixed(2) : sum('kills').toFixed(2);
+    const counts = {};
+    for (const j of lines) counts[j.agent] = (counts[j.agent] || 0) + 1;
+    const top = Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0];
+    const cell = (label, value) => h('div', null, h('dt', null, label), h('dd', null, value));
+    return h(
+      'div',
+      { class: 'player-perf' },
+      h('span', { class: 'meta' }, `Premier · ${lines.length} match${lines.length > 1 ? 's' : ''}`),
+      h('dl', null, cell('ACS', avg('acs')), cell('K/D', kd), cell('HS', `${avg('hs')} %`), cell('Agent', h('span', { class: 'slot-agent' }, agentIcon(top), top)))
+    );
+  }
+
+  // Bandeau de la map de la semaine, en haut de chaque onglet.
+  function weekBanner() {
+    const current = state.data.reglages.site?.mapSemaine || '';
+    const picker =
+      can('reglages') &&
+      h(
+        'select',
+        {
+          class: 'week-select',
+          'aria-label': 'Choisir la map de la semaine',
+          onchange: (e) => save('reglages', 'site', { mapSemaine: e.target.value })
+        },
+        h('option', { value: '' }, current ? 'Aucune map' : 'Choisir la map de la semaine'),
+        window.MAPS.map((m) => h('option', { value: m.id, selected: m.id === current }, m.nom))
+      );
+    if (!current) return picker ? h('div', { class: 'week week-empty' }, picker) : null;
+
+    const rec = recordOf(current);
+    const n = stratsOf(current).length;
+    return mapBanner(
+      current,
+      'week map-banner',
+      h(
+        'div',
+        { class: 'week-text' },
+        h('span', { class: 'eyebrow' }, 'Map de la semaine'),
+        h('strong', null, MAP_NAME[current]),
+        h('span', { class: 'meta' }, `${n} strat${n > 1 ? 's' : ''}${rec.n ? ` · ${rec.pct} % de victoires en match` : ''}`)
+      ),
+      h(
+        'div',
+        { class: 'toolbar' },
+        h(
+          'button',
+          {
+            class: 'btn btn-primary',
+            onclick: () => {
+              Object.assign(state, { view: 'maps', map: current, cote: 'tous', editing: null });
+              render();
+            }
+          },
+          'Voir les strats'
+        ),
+        picker
+      )
+    );
+  }
+
   function playerCard(id, p) {
     const mine = id === state.me.id;
     const rank = rankInfo(p.rang);
@@ -254,6 +321,7 @@
         )
       ),
       p.agents?.length ? h('div', { class: 'compo-strip' }, p.agents.map((a) => agentTag(a))) : null,
+      playerStats(id),
       p.notes && h('p', { class: 'player-notes' }, p.notes),
       mine && h('button', { class: 'btn', onclick: () => ((state.editing = 'joueurs:moi'), render()) }, 'Modifier ma fiche')
     );
@@ -709,7 +777,7 @@
   function render() {
     document.querySelectorAll('.tab').forEach((t) => t.setAttribute('aria-selected', t.dataset.view === state.view ? 'true' : 'false'));
     const view = { equipe: viewEquipe, maps: viewMaps, compos: viewCompos, matchs: viewMatchs }[state.view]();
-    $('view').replaceChildren(view);
+    $('view').replaceChildren(...[weekBanner(), view].filter(Boolean));
   }
 
   function showLogin(e) {
@@ -746,7 +814,9 @@
       const me = await Api.me();
       state.me = me;
       state.data = await Api.all();
-      for (const k of ['joueurs', 'maps', 'strats', 'compos', 'matchs']) state.data[k] = state.data[k] || {};
+      for (const k of ['joueurs', 'reglages', 'maps', 'strats', 'compos', 'matchs']) state.data[k] = state.data[k] || {};
+      // L'onglet Maps s'ouvre sur la map de la semaine.
+      if (state.data.reglages.site?.mapSemaine) state.map = state.data.reglages.site.mapSemaine;
       $('user-name').textContent = me.name;
       const roleTag = me.admin ? 'Admin' : me.igl ? 'IGL' : null;
       if (roleTag && !Api.demo) $('user-name').after(h('span', { class: 'tag' }, roleTag));

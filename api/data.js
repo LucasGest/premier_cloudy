@@ -3,7 +3,7 @@ const { requireUser } = require('../lib/access');
 const { items, db } = require('../lib/firebase');
 const { fetchPlayer } = require('../lib/rank');
 
-// GET    /api/data                          → { joueurs, maps, strats, compos, matchs, dispos }
+// GET    /api/data                          → { joueurs, reglages, maps, strats, compos, matchs, dispos }
 // PUT    /api/data  { collection, id, data } → enregistre (id vide = nouvelle strat ou nouveau
 //                                              match ; pour joueurs, toujours sa propre fiche)
 // DELETE /api/data?collection=strats|matchs&id=… → supprime une strat ou un match
@@ -29,6 +29,8 @@ const SCHEMAS = {
     statut: oneOf(STATUTS),
     notes: text(300)
   },
+  // Réglages de l'équipe (un seul document, "site") : la map de la semaine.
+  reglages: { mapSemaine: (v) => mapId(v) || '' },
   // Une fiche par map : les notes générales. Les strats sont à part, une par document.
   maps: { notes: text(8000) },
   strats: {
@@ -75,6 +77,7 @@ function tooManyWrites(userId) {
 const CAN_WRITE = {
   joueurs: () => true,
   maps: () => true,
+  reglages: (u) => u.igl,
   strats: (u) => u.igl,
   compos: (u) => u.igl,
   matchs: (u) => u.admin
@@ -124,7 +127,13 @@ module.exports = async (req, res) => {
 
       // Chacun ne modifie que sa propre fiche joueur, quel que soit l'id envoyé.
       const docId =
-        collection === 'joueurs' ? user.id : ['strats', 'matchs'].includes(collection) ? id || crypto.randomUUID() : mapId(id);
+        collection === 'joueurs'
+          ? user.id
+          : collection === 'reglages'
+            ? 'site'
+            : ['strats', 'matchs'].includes(collection)
+              ? id || crypto.randomUUID()
+              : mapId(id);
       if (!docId || !/^[\w-]{1,40}$/.test(docId)) return res.status(400).json({ error: 'identifiant invalide' });
 
       const saved = { ...clean(collection, data), updatedBy: user.name, updatedAt: new Date().toISOString() };
