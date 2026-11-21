@@ -34,6 +34,8 @@
       if (k === 'class') el.className = v;
       else if (k.startsWith('on')) el.addEventListener(k.slice(2), v);
       else if (k === 'value') el.value = v;
+      // Style via le CSSOM : autorisé par la politique de sécurité, contrairement à l'attribut style.
+      else if (k === 'style') el.style.cssText = v;
       else el.setAttribute(k, v === true ? '' : v);
     }
     for (const c of children.flat()) if (c != null && c !== false) el.append(c instanceof Node ? c : String(c));
@@ -99,7 +101,7 @@
   }
 
   function handleError(e) {
-    if (e.auth) return showLogin();
+    if (e.auth) return showLogin(e);
     toast("Échec de l'enregistrement, réessayez");
   }
 
@@ -599,10 +601,10 @@
     $('view').replaceChildren(view);
   }
 
-  function showLogin() {
+  function showLogin(e) {
     $('app').hidden = true;
     $('login').hidden = false;
-    const err = new URLSearchParams(location.search).get('erreur');
+    const err = e?.retire ? 'acces' : new URLSearchParams(location.search).get('erreur');
     const messages = {
       acces: "Accès refusé : il faut le rôle Premier ou IGL sur le serveur CloudyCat.",
       connexion: 'La connexion avec Discord a échoué, réessayez.'
@@ -612,6 +614,13 @@
       $('login-error').hidden = false;
     }
   }
+
+  $('logout').addEventListener('click', async () => {
+    try {
+      await Api.logout();
+    } catch {}
+    location.replace('/');
+  });
 
   document.querySelectorAll('.tab').forEach((t) =>
     t.addEventListener('click', () => {
@@ -641,7 +650,7 @@
       history.replaceState(null, '', location.pathname + (Api.demo && location.protocol !== 'file:' ? '?demo' : ''));
       render();
     } catch (e) {
-      showLogin();
+      showLogin(e);
       return;
     }
 

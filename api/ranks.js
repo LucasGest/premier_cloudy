@@ -1,4 +1,4 @@
-const { getSession } = require('../lib/session');
+const { requireUser } = require('../lib/access');
 const { items } = require('../lib/firebase');
 const { fetchPlayer } = require('../lib/rank');
 
@@ -9,8 +9,8 @@ const MAX_AGE_MS = 6 * 60 * 60 * 1000;
 
 module.exports = async (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
-  if (!getSession(req)) return res.status(401).json({ error: 'non connecté' });
   if (req.method !== 'POST' || req.headers['x-premier'] !== '1') return res.status(405).json({ error: 'requête refusée' });
+  if (!(await requireUser(req, res))) return;
 
   try {
     const snap = await items('joueurs').get();

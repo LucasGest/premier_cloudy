@@ -1,5 +1,5 @@
 const crypto = require('crypto');
-const { cookie } = require('../lib/session');
+const { cookie, addCookie } = require('../lib/session');
 
 // Envoie le joueur sur la page d'autorisation Discord. Le "state" aléatoire,
 // gardé dans un cookie, est revérifié au retour pour bloquer les liens piégés.
@@ -13,6 +13,7 @@ module.exports = (req, res) => {
     state,
     prompt: 'none'
   });
-  res.setHeader('Set-Cookie', cookie('premier_state', state, 600));
+  addCookie(res, cookie('__Host-premier_state', state, 600));
+  res.setHeader('Cache-Control', 'no-store');
   res.writeHead(302, { Location: `https://discord.com/oauth2/authorize?${params}` }).end();
 };

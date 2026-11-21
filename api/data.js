@@ -1,5 +1,5 @@
 const crypto = require('crypto');
-const { getSession } = require('../lib/session');
+const { requireUser } = require('../lib/access');
 const { items, db } = require('../lib/firebase');
 const { fetchPlayer } = require('../lib/rank');
 
@@ -57,6 +57,19 @@ const SCHEMAS = {
   }
 };
 
+// Garde-fous contre l'abus : taille d'une écriture, et 40 écritures par
+// minute et par joueur (compté par instance de fonction, suffisant ici).
+const MAX_BODY = 30000;
+const WRITES_PER_MIN = 40;
+const writes = new Map();
+function tooManyWrites(userId) {
+  const now = Date.now();
+  const recent = (writes.get(userId) || []).filter((t) => now - t < 60000);
+  recent.push(now);
+  writes.set(userId, recent);
+  return recent.length > WRITES_PER_MIN;
+}
+
 // Champs sans lesquels un document n'a pas de sens.
 const REQUIRED = { strats: ['map', 'nom', 'cote'], matchs: ['date', 'map'] };
 
@@ -68,8 +81,8 @@ function clean(collection, data) {
 
 module.exports = async (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
-  const user = getSession(req);
-  if (!user) return res.status(401).json({ error: 'non connecté' });
+  const user = await requireUser(req, res);
+  if (!user) return;
 
   try {
     if (req.method === 'GET') {
@@ -89,8 +102,12 @@ module.exports = async (req, res) => {
     // Les écritures exigent un en-tête que seul notre propre script envoie :
     // un formulaire piégé sur un autre site ne peut pas l'ajouter.
     if (req.headers['x-premier'] !== '1') return res.status(403).json({ error: 'requête refusée' });
+    if (tooManyWrites(user.id)) return res.status(429).json({ error: 'trop de modifications, patientez une minute' });
 
     if (req.method === 'PUT') {
+      if (!req.headers['content-type']?.startsWith('application/json') || JSON.stringify(req.body || {}).length > MAX_BODY) {
+        return res.status(413).json({ error: 'requête trop volumineuse' });
+      }
       const { collection, id, data } = req.body || {};
       if (!SCHEMAS[collection]) return res.status(400).json({ error: 'collection inconnue' });
 

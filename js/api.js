@@ -25,6 +25,10 @@
       body: body ? JSON.stringify(body) : undefined
     });
     if (res.status === 401) throw Object.assign(new Error('non connecté'), { auth: true });
+    if (res.status === 403 && url !== '/api/logout') {
+      const body = await res.clone().json().catch(() => ({}));
+      if (body.error === 'accès retiré') throw Object.assign(new Error('accès retiré'), { auth: true, retire: true });
+    }
     const json = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(json.error || 'erreur');
     return json;
@@ -53,6 +57,10 @@
       all[collection][docId] = saved;
       demoSave(all);
       return { id: docId, data: saved };
+    },
+
+    async logout() {
+      if (!DEMO) await call('POST', '/api/logout');
     },
 
     // Relit en jeu les rangs de plus de 6 heures. Rien à faire en démo.
