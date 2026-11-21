@@ -147,26 +147,63 @@
     );
   }
 
+  // "Diamant 2" -> emblème officiel et couleur du rang (CDN valorant-api).
+  const TIER_ORDER = ['Fer', 'Bronze', 'Argent', 'Or', 'Platine', 'Diamant', 'Ascendant', 'Immortel', 'Radiant'];
+  const TIER_COLORS = ['#868986', '#a5855d', '#bbc2c2', '#eccf56', '#59a9b6', '#b489c4', '#6ae2af', '#bb3d65', '#ffffaa'];
+  function rankInfo(rang) {
+    const [name, div] = (rang || '').split(' ');
+    const i = TIER_ORDER.indexOf(name);
+    if (i < 0) return null;
+    const tier = name === 'Radiant' ? 27 : 3 + i * 3 + (Number(div) || 1) - 1;
+    return { icon: `https://media.valorant-api.com/competitivetiers/03621f52-342b-cf4e-4f86-9350a49c6d04/${tier}/largeicon.png`, color: TIER_COLORS[i] };
+  }
+
+  async function copy(text) {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast(`${text} copié`);
+    } catch {
+      toast('Copie impossible sur ce navigateur');
+    }
+  }
+
   function playerCard(id, p) {
     const mine = id === state.me.id;
+    const rank = rankInfo(p.rang);
+    const banner = h('div', { class: 'banner' });
+    if (p.carte) banner.style.backgroundImage = `url("${p.carte}")`;
+
     return h(
       'article',
       { class: `card player${mine ? ' mine' : ''}` },
+      banner,
       h(
         'div',
         { class: 'player-head' },
         p.avatar ? h('img', { class: 'avatar', src: p.avatar, alt: '' }) : h('span', { class: 'avatar avatar-empty' }, (p.discord || '?').slice(0, 1).toUpperCase()),
-        h('div', { class: 'player-name' }, h('strong', null, p.discord || 'Joueur'), h('span', { class: 'meta' }, p.riotId || 'Riot ID non renseigné')),
+        h(
+          'div',
+          { class: 'player-name' },
+          h('strong', null, p.discord || 'Joueur'),
+          p.riotId
+            ? h('button', { class: 'riot-id', type: 'button', title: 'Copier le Riot ID', onclick: () => copy(p.riotId) }, p.riotId, p.niveau ? h('span', { class: 'meta' }, ` · niv. ${p.niveau}`) : null)
+            : h('span', { class: 'meta' }, 'Riot ID non renseigné')
+        ),
         p.statut && h('span', { class: `badge${p.statut === 'Titulaire' ? ' badge-main' : ''}` }, p.statut)
       ),
       h(
-        'dl',
-        { class: 'player-stats' },
-        h('div', null, h('dt', null, 'Rang'), h('dd', null, p.rang || '-', p.rangAuto ? h('small', { class: 'meta', title: 'Lu en jeu' }, ' auto') : null)),
-        h('div', null, h('dt', null, 'Rôle'), h('dd', null, p.role || '-'))
+        'div',
+        { class: 'player-rank' },
+        rank ? h('img', { class: 'rank-icon', src: rank.icon, alt: '', loading: 'lazy' }) : h('span', { class: 'rank-icon rank-empty' }),
+        h(
+          'div',
+          null,
+          h('strong', { style: rank ? `color:${rank.color}` : null }, p.rang || 'Non classé'),
+          h('span', { class: 'meta' }, [p.role, p.rangAuto ? 'rang lu en jeu' : null].filter(Boolean).join(' · ') || ' ')
+        )
       ),
       p.agents?.length ? h('div', { class: 'compo-strip' }, p.agents.map((a) => h('span', { class: 'agent-tag' }, a))) : null,
-      p.notes && h('p', { class: 'meta' }, p.notes),
+      p.notes && h('p', { class: 'player-notes' }, p.notes),
       mine && h('button', { class: 'btn', onclick: () => ((state.editing = 'joueurs:moi'), render()) }, 'Modifier ma fiche')
     );
   }

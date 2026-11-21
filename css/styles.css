@@ -122,17 +122,28 @@ label.field { display: flex; flex-direction: column; gap: 4px; font-size: 13px; 
 .chip { border: 1px solid var(--line); background: var(--bg); border-radius: 999px; padding: 4px 11px; font-size: 13px; color: var(--ink); }
 .chip:hover { border-color: var(--muted); }
 .chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+/* Card joueur : bannière in-game en haut, avatar à cheval dessus. */
+.player { overflow: hidden; }
 .player.mine { border-color: var(--accent); }
-.player-head { display: flex; align-items: center; gap: 10px; }
-.player-head .avatar { width: 40px; height: 40px; flex: none; }
-.avatar-empty { display: grid; place-items: center; background: var(--surface-2); border: 1px solid var(--line); font-weight: 600; }
-.player-name { display: flex; flex-direction: column; min-width: 0; margin-right: auto; }
-.player-name strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.badge { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; border: 1px solid var(--line); border-radius: 4px; padding: 2px 6px; color: var(--muted); }
+.banner {
+  margin: -16px -16px 0; height: 92px;
+  background: linear-gradient(120deg, #3a1d24, var(--surface-2) 60%) center / cover no-repeat;
+}
+.player-head { display: flex; align-items: flex-end; gap: 10px; margin-top: -30px; }
+.player-head .avatar { width: 56px; height: 56px; flex: none; border: 3px solid var(--surface); background: var(--surface-2); }
+.avatar-empty { display: grid; place-items: center; font-weight: 600; font-size: 20px; }
+.player-name { display: flex; flex-direction: column; min-width: 0; margin-right: auto; padding-bottom: 2px; }
+.player-name strong { font-size: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.riot-id { background: none; border: 0; padding: 0; text-align: left; font-size: 13px; color: var(--ink); opacity: 0.85; }
+.riot-id:hover { opacity: 1; text-decoration: underline; text-underline-offset: 3px; }
+.badge { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; border: 1px solid var(--line); border-radius: 4px; padding: 2px 6px; color: var(--muted); margin-bottom: 4px; }
 .badge-main { border-color: var(--accent); color: var(--accent); }
-.player-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 0; }
-.player-stats dt { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
-.player-stats dd { margin: 0; font-weight: 600; }
+.player-rank { display: flex; align-items: center; gap: 10px; padding: 8px 10px; background: var(--surface-2); border-radius: 8px; }
+.player-rank > div { display: flex; flex-direction: column; line-height: 1.25; }
+.player-rank strong { font-family: var(--font-title); font-size: 22px; text-transform: uppercase; letter-spacing: 0.03em; }
+.rank-icon { width: 40px; height: 40px; flex: none; }
+.rank-empty { border: 2px dashed var(--line); border-radius: 50%; }
+.player-notes { margin: 0; font-size: 13px; color: var(--muted); }
 
 /* Matchs */
 .record { display: flex; gap: 20px; align-items: baseline; margin-bottom: 16px; flex-wrap: wrap; }

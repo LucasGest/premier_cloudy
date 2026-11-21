@@ -1,7 +1,7 @@
 const crypto = require('crypto');
 const { getSession } = require('../lib/session');
 const { items } = require('../lib/firebase');
-const { fetchRank } = require('../lib/rank');
+const { fetchPlayer } = require('../lib/rank');
 
 // GET    /api/data                          → { joueurs, maps, compos, matchs }
 // PUT    /api/data  { collection, id, data } → enregistre (id vide = nouveau match ;
@@ -82,10 +82,12 @@ module.exports = async (req, res) => {
       const saved = { ...clean(collection, data), updatedBy: user.name, updatedAt: new Date().toISOString() };
       if (collection === 'joueurs') {
         // Rang lu en jeu quand le Riot ID est trouvé ; sinon celui choisi à la main.
-        const auto = saved.riotId ? await fetchRank(saved.riotId) : null;
+        const live = saved.riotId ? await fetchPlayer(saved.riotId) : null;
         Object.assign(saved, {
-          rang: auto || saved.rang,
-          rangAuto: Boolean(auto),
+          rang: live?.rang || saved.rang,
+          rangAuto: Boolean(live?.rang),
+          carte: live?.carte || null,
+          niveau: live?.niveau ?? null,
           rankCheckedAt: new Date().toISOString(),
           discord: user.name,
           avatar: user.avatar
