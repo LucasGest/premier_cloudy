@@ -18,9 +18,9 @@ Ouvrir `index.html` dans le navigateur (double-clic) : mode démo, les données 
 | `css/styles.css` | Le style (sombre, clair si le système le demande). |
 | `js/donnees.js` | Pool de maps et agents, à mettre à jour quand Riot change le pool. |
 | `js/api.js` | Lecture et écriture des données (serveur, ou navigateur en mode démo). |
-| `js/app.js` | L'interface : onglets Maps, Compos, Matchs. |
+| `js/app.js` | L'interface : onglets Équipe, Maps, Compos, Matchs. |
 | `api/` | Fonctions Vercel : `login`, `callback`, `logout` (connexion Discord), `me`, `data` (lecture et écriture), `ranks` (relit les rangs en jeu de plus de 6 heures, à chaque ouverture du site). |
-| `lib/` | Code partagé par les fonctions : session signée, Firebase. |
+| `lib/` | Code partagé par les fonctions : session signée, Firebase, rang via HenrikDev. |
 | `.env.example` | Les variables à renseigner dans Vercel. |
 
 ## Mise en ligne
