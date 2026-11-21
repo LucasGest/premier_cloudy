@@ -55,6 +55,12 @@
       return { id: docId, data: saved };
     },
 
+    // Relit en jeu les rangs de plus de 6 heures. Rien à faire en démo.
+    async refreshRanks() {
+      if (DEMO) return { joueurs: {} };
+      return call('POST', '/api/ranks');
+    },
+
     async remove(collection, id) {
       if (!DEMO) return call('DELETE', `/api/data?collection=${encodeURIComponent(collection)}&id=${encodeURIComponent(id)}`);
       const all = demoLoad();

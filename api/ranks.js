@@ -1,0 +1,37 @@
+const { getSession } = require('../lib/session');
+const { items } = require('../lib/firebase');
+const { fetchRank } = require('../lib/rank');
+
+// POST /api/ranks : relit en jeu les rangs vérifiés il y a plus de 6 heures.
+// Appelé par la page après son affichage ; renvoie les fiches mises à jour.
+const MAX_AGE_MS = 6 * 60 * 60 * 1000;
+
+module.exports = async (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  if (!getSession(req)) return res.status(401).json({ error: 'non connecté' });
+  if (req.method !== 'POST' || req.headers['x-premier'] !== '1') return res.status(405).json({ error: 'requête refusée' });
+
+  try {
+    const snap = await items('joueurs').get();
+    const stale = snap.docs.filter((doc) => {
+      const p = doc.data();
+      return p.riotId && !(Date.now() - Date.parse(p.rankCheckedAt || 0) < MAX_AGE_MS);
+    });
+
+    const updated = {};
+    await Promise.all(
+      stale.map(async (doc) => {
+        const rang = await fetchRank(doc.data().riotId);
+        // Rang introuvable : on garde l'ancien, on retentera dans 6 heures.
+        const patch = { rankCheckedAt: new Date().toISOString(), ...(rang ? { rang, rangAuto: true } : {}) };
+        await doc.ref.update(patch);
+        updated[doc.id] = { ...doc.data(), ...patch };
+      })
+    );
+
+    res.json({ joueurs: updated });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'erreur serveur' });
+  }
+};

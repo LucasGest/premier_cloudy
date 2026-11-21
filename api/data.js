@@ -83,7 +83,13 @@ module.exports = async (req, res) => {
       if (collection === 'joueurs') {
         // Rang lu en jeu quand le Riot ID est trouvé ; sinon celui choisi à la main.
         const auto = saved.riotId ? await fetchRank(saved.riotId) : null;
-        Object.assign(saved, { rang: auto || saved.rang, rangAuto: Boolean(auto), discord: user.name, avatar: user.avatar });
+        Object.assign(saved, {
+          rang: auto || saved.rang,
+          rangAuto: Boolean(auto),
+          rankCheckedAt: new Date().toISOString(),
+          discord: user.name,
+          avatar: user.avatar
+        });
       }
       await items(collection).doc(docId).set(saved);
       return res.json({ id: docId, data: saved });

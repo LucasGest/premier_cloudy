@@ -466,6 +466,16 @@
       render();
     } catch (e) {
       showLogin();
+      return;
     }
+
+    // Les rangs se rafraîchissent en arrière-plan, sans bloquer l'affichage.
+    try {
+      const { joueurs } = await Api.refreshRanks();
+      if (Object.keys(joueurs || {}).length === 0) return;
+      Object.assign(state.data.joueurs, joueurs);
+      // Pas de nouveau rendu pendant une saisie, pour ne rien effacer.
+      if (!state.editing && !(state.view === 'equipe' && !state.data.joueurs[state.me.id])) render();
+    } catch {}
   })();
 })();
