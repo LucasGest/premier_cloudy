@@ -8,9 +8,17 @@
     { key: 'notes', titre: 'Notes', aide: 'Tout le reste.' }
   ];
 
+  const RANGS = ['Fer', 'Bronze', 'Argent', 'Or', 'Platine', 'Diamant', 'Ascendant', 'Immortel']
+    .flatMap((r) => [1, 2, 3].map((n) => `${r} ${n}`))
+    .concat('Radiant');
+  const ROLES = ['Duelliste', 'Initiateur', 'Contrôleur', 'Sentinelle', 'Flex'];
+  const STATUTS = ['Titulaire', 'Remplaçant', 'Coach'];
+  const MAX_AGENTS = 5;
+
   const state = {
-    data: { maps: {}, compos: {}, matchs: {} },
-    view: 'maps',
+    me: null,
+    data: { joueurs: {}, maps: {}, compos: {}, matchs: {} },
+    view: 'equipe',
     map: window.MAPS[0].id,
     editing: null // "maps:<id>", "compos:<id>", "matchs:<id>" ou "matchs:nouveau"
   };
@@ -62,6 +70,124 @@
   function handleError(e) {
     if (e.auth) return showLogin();
     toast("Échec de l'enregistrement, réessayez");
+  }
+
+  // ---------- Équipe ----------
+  function select(options, value, placeholder) {
+    return h('select', null, h('option', { value: '' }, placeholder), options.map((o) => h('option', { value: o, selected: o === value }, o)));
+  }
+
+  function playerForm(doc) {
+    const riotId = h('input', { placeholder: 'Pseudo#TAG', value: doc.riotId || '', maxlength: 22, required: true, pattern: '[^#]{3,16}#[A-Za-z0-9]{2,5}' });
+    const rang = select(RANGS, doc.rang, 'Rang');
+    const role = select(ROLES, doc.role, 'Rôle principal');
+    const statut = select(STATUTS, doc.statut, 'Statut');
+    const notes = h('input', { placeholder: 'Ex : à l\'aise en lurk, peut jouer smoke', value: doc.notes || '', maxlength: 300 });
+    const chosen = new Set(doc.agents || []);
+    const count = h('span', { class: 'meta' });
+
+    const chips = Object.entries(window.AGENTS).map(([r, names]) =>
+      h(
+        'div',
+        { class: 'agent-group' },
+        h('span', { class: 'meta' }, r),
+        h(
+          'div',
+          { class: 'chips' },
+          names.map((n) => {
+            const b = h('button', { type: 'button', class: 'chip', 'aria-pressed': chosen.has(n) ? 'true' : 'false' }, n);
+            b.addEventListener('click', () => {
+              if (chosen.has(n)) chosen.delete(n);
+              else if (chosen.size < MAX_AGENTS) chosen.add(n);
+              else return toast(`${MAX_AGENTS} agents maximum`);
+              b.setAttribute('aria-pressed', chosen.has(n) ? 'true' : 'false');
+              count.textContent = `${chosen.size}/${MAX_AGENTS}`;
+            });
+            return b;
+          })
+        )
+      )
+    );
+    count.textContent = `${chosen.size}/${MAX_AGENTS}`;
+
+    return h(
+      'form',
+      {
+        class: 'card player-form',
+        onsubmit: (e) => {
+          e.preventDefault();
+          save('joueurs', state.me.id, {
+            riotId: riotId.value.trim(),
+            rang: rang.value,
+            role: role.value,
+            statut: statut.value,
+            agents: [...chosen],
+            notes: notes.value.trim()
+          });
+        }
+      },
+      h('h3', null, 'Ma fiche'),
+      h(
+        'div',
+        { class: 'form-grid' },
+        h('label', { class: 'field' }, 'Riot ID', riotId),
+        h('label', { class: 'field' }, 'Rang', rang),
+        h('label', { class: 'field' }, 'Rôle', role),
+        h('label', { class: 'field' }, 'Statut', statut)
+      ),
+      h('p', { class: 'meta' }, 'Le rang se met à jour tout seul quand le Riot ID est trouvé ; sinon, celui choisi ici est gardé.'),
+      h('div', { class: 'field' }, h('span', null, 'Agents joués ', count), chips),
+      h('label', { class: 'field' }, 'Notes', notes),
+      h(
+        'div',
+        { class: 'toolbar' },
+        h('button', { class: 'btn btn-primary', type: 'submit' }, 'Enregistrer'),
+        state.data.joueurs[state.me.id] && h('button', { class: 'btn', type: 'button', onclick: () => ((state.editing = null), render()) }, 'Annuler')
+      )
+    );
+  }
+
+  function playerCard(id, p) {
+    const mine = id === state.me.id;
+    return h(
+      'article',
+      { class: `card player${mine ? ' mine' : ''}` },
+      h(
+        'div',
+        { class: 'player-head' },
+        p.avatar ? h('img', { class: 'avatar', src: p.avatar, alt: '' }) : h('span', { class: 'avatar avatar-empty' }, (p.discord || '?').slice(0, 1).toUpperCase()),
+        h('div', { class: 'player-name' }, h('strong', null, p.discord || 'Joueur'), h('span', { class: 'meta' }, p.riotId || 'Riot ID non renseigné')),
+        p.statut && h('span', { class: `badge${p.statut === 'Titulaire' ? ' badge-main' : ''}` }, p.statut)
+      ),
+      h(
+        'dl',
+        { class: 'player-stats' },
+        h('div', null, h('dt', null, 'Rang'), h('dd', null, p.rang || '-', p.rangAuto ? h('small', { class: 'meta', title: 'Lu en jeu' }, ' auto') : null)),
+        h('div', null, h('dt', null, 'Rôle'), h('dd', null, p.role || '-'))
+      ),
+      p.agents?.length ? h('div', { class: 'compo-strip' }, p.agents.map((a) => h('span', { class: 'agent-tag' }, a))) : null,
+      p.notes && h('p', { class: 'meta' }, p.notes),
+      mine && h('button', { class: 'btn', onclick: () => ((state.editing = 'joueurs:moi'), render()) }, 'Modifier ma fiche')
+    );
+  }
+
+  function viewEquipe() {
+    const order = { Titulaire: 0, Remplaçant: 1, Coach: 2 };
+    const entries = Object.entries(state.data.joueurs).sort(
+      (a, b) => (order[a[1].statut] ?? 3) - (order[b[1].statut] ?? 3) || (a[1].discord || '').localeCompare(b[1].discord || '')
+    );
+    const mine = state.data.joueurs[state.me.id];
+    const showForm = !mine || state.editing === 'joueurs:moi';
+
+    return h(
+      'div',
+      { class: 'equipe' },
+      showForm && h('div', null, !mine && h('p', { class: 'intro' }, 'Bienvenue. Remplissez votre fiche pour apparaître dans l\'équipe.'), playerForm(mine || {})),
+      h('div', { class: 'record' }, h('div', null, h('strong', null, `${entries.length} joueur${entries.length > 1 ? 's' : ''}`))),
+      entries.length
+        ? h('div', { class: 'grid' }, entries.filter(([id]) => !(showForm && id === state.me.id && mine)).map(([id, p]) => playerCard(id, p)))
+        : h('p', { class: 'empty-text' }, "Personne n'a encore rempli sa fiche.")
+    );
   }
 
   // ---------- Maps ----------
@@ -293,7 +419,7 @@
   // ---------- Rendu ----------
   function render() {
     document.querySelectorAll('.tab').forEach((t) => t.setAttribute('aria-selected', t.dataset.view === state.view ? 'true' : 'false'));
-    const view = { maps: viewMaps, compos: viewCompos, matchs: viewMatchs }[state.view]();
+    const view = { equipe: viewEquipe, maps: viewMaps, compos: viewCompos, matchs: viewMatchs }[state.view]();
     $('view').replaceChildren(view);
   }
 
@@ -322,8 +448,9 @@
   (async function start() {
     try {
       const me = await Api.me();
+      state.me = me;
       state.data = await Api.all();
-      for (const k of ['maps', 'compos', 'matchs']) state.data[k] = state.data[k] || {};
+      for (const k of ['joueurs', 'maps', 'compos', 'matchs']) state.data[k] = state.data[k] || {};
       $('user-name').textContent = me.name;
       if (me.avatar) {
         $('user-avatar').src = me.avatar;

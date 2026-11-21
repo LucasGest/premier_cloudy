@@ -6,9 +6,9 @@
 
   function demoLoad() {
     try {
-      return JSON.parse(localStorage.getItem(KEY)) || { maps: {}, compos: {}, matchs: {} };
+      return JSON.parse(localStorage.getItem(KEY)) || { joueurs: {}, maps: {}, compos: {}, matchs: {} };
     } catch {
-      return { maps: {}, compos: {}, matchs: {} };
+      return { joueurs: {}, maps: {}, compos: {}, matchs: {} };
     }
   }
   function demoSave(all) {
@@ -46,8 +46,10 @@
     async save(collection, id, data) {
       if (!DEMO) return call('PUT', '/api/data', { collection, id, data });
       const all = demoLoad();
-      const docId = id || (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()));
+      const docId = collection === 'joueurs' ? 'demo' : id || (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()));
       const saved = { ...data, updatedBy: 'Démo', updatedAt: new Date().toISOString() };
+      if (collection === 'joueurs') Object.assign(saved, { discord: 'Démo', avatar: null, rangAuto: false });
+      all[collection] = all[collection] || {};
       all[collection][docId] = saved;
       demoSave(all);
       return { id: docId, data: saved };
