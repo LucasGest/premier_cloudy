@@ -195,6 +195,7 @@ label.field { display: flex; flex-direction: column; gap: 4px; font-size: 13px; 
 .player-rank strong { font-family: var(--font-title); font-size: 22px; text-transform: uppercase; letter-spacing: 0.03em; }
 .rank-icon { width: 40px; height: 40px; flex: none; }
 .rank-empty { border: 2px dashed var(--line); border-radius: 50%; }
+.warn { font-size: 12px; color: #e0a84a; }
 .player-notes { margin: 0; font-size: 13px; color: var(--muted); }
 
 /* Matchs */

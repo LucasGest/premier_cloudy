@@ -185,7 +185,8 @@
   }
 
   // "Diamant 2" -> emblème officiel et couleur du rang (CDN valorant-api).
-  const TIER_ORDER = ['Fer', 'Bronze', 'Argent', 'Or', 'Platine', 'Diamant', 'Ascendant', 'Immortel', 'Radiant'];
+  const DEFAULT_CARD = 'https://media.valorant-api.com/playercards/9fb348bc-41a0-91ad-8a3e-818035c4e561/wideart.png';
+  const TIER_ORDER =['Fer', 'Bronze', 'Argent', 'Or', 'Platine', 'Diamant', 'Ascendant', 'Immortel', 'Radiant'];
   const TIER_COLORS = ['#868986', '#a5855d', '#bbc2c2', '#eccf56', '#59a9b6', '#b489c4', '#6ae2af', '#bb3d65', '#ffffaa'];
   function rankInfo(rang) {
     const [name, div] = (rang || '').split(' ');
@@ -209,7 +210,10 @@
     const rank = rankInfo(p.rang);
     // Le statut est posé sur la bannière : il ne gêne plus les noms longs.
     const banner = h('div', { class: 'banner' }, p.statut && h('span', { class: `badge${p.statut === 'Titulaire' ? ' badge-main' : ''}` }, p.statut));
-    if (p.carte) banner.style.backgroundImage = `url("${p.carte}")`;
+    // Sans bannière lue en jeu (Riot ID introuvable) : la carte Valorant par défaut, assombrie.
+    banner.style.backgroundImage = p.carte
+      ? `url("${p.carte}")`
+      : `linear-gradient(rgba(15,20,25,.45), rgba(15,20,25,.45)), url("${DEFAULT_CARD}")`;
 
     return h(
       'article',
@@ -226,7 +230,9 @@
           p.riotId
             ? h('button', { class: 'riot-id', type: 'button', title: 'Copier le Riot ID', onclick: () => copy(p.riotId) }, p.riotId)
             : h('span', { class: 'meta' }, 'Riot ID non renseigné'),
-          p.niveau ? h('span', { class: 'meta' }, `Niveau ${p.niveau}`) : null
+          p.niveau
+            ? h('span', { class: 'meta' }, `Niveau ${p.niveau}`)
+            : p.riotId && h('span', { class: 'warn', title: 'Vérifier le pseudo et le tag, ou jouer une partie' }, 'Introuvable en jeu')
         )
       ),
       h(
