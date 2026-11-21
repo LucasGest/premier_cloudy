@@ -147,6 +147,62 @@ label.field { display: flex; flex-direction: column; gap: 4px; font-size: 13px; 
 .strat-plan { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 .strat-foot { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
 
+/* Tableau tactique */
+.strat-body.with-board { display: grid; grid-template-columns: minmax(0, 380px) minmax(0, 1fr); gap: 16px; align-items: start; }
+.board-view { display: flex; flex-direction: column; gap: 8px; }
+.board-frame { background: #0b0f13; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; aspect-ratio: 1; }
+.board-svg { display: block; width: 100%; height: 100%; }
+.board-bg { fill: #0b0f13; }
+.board-bar { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+.board-phases { display: flex; gap: 6px; flex-wrap: wrap; }
+.board-play { padding: 5px 14px; }
+.it-line { fill: none; stroke-width: 7; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 0 3px rgba(0, 0, 0, 0.8)); }
+.it-zone { fill-opacity: 0.25; stroke-width: 3; }
+.it-text { font: 700 34px var(--font-body); paint-order: stroke; stroke: #0b0f13; stroke-width: 7px; text-anchor: middle; dominant-baseline: middle; }
+.util-bg { fill: rgba(11, 15, 19, 0.88); stroke: #ece8e1; stroke-width: 2; }
+.agent-ring { fill: #0b0f13; stroke-width: 5; }
+.side-att .agent-ring { stroke: #ff4655; }
+.side-def .agent-ring { stroke: #4aa8e0; }
+.appear { animation: board-in 0.5s ease both; }
+@keyframes board-in { from { opacity: 0; } to { opacity: 1; } }
+.board-svg.editing { touch-action: none; cursor: crosshair; }
+.board-svg.editing .it { cursor: grab; }
+.selected { outline: none; filter: drop-shadow(0 0 6px #ffffff) drop-shadow(0 0 2px #ffffff); }
+
+body.no-scroll { overflow: hidden; }
+.board-editor {
+  position: fixed; inset: 0; z-index: 50; background: var(--bg);
+  display: grid; grid-template-rows: auto minmax(0, 1fr) auto;
+}
+.tb-head, .tb-foot { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.tb-head strong { font-family: var(--font-title); font-size: 22px; text-transform: uppercase; }
+.tb-phases { flex: 1; }
+.tb-foot { border-bottom: 0; border-top: 1px solid var(--line); justify-content: flex-end; }
+.tb-body { display: grid; grid-template-columns: minmax(0, 1fr) 320px; min-height: 0; }
+.tb-board { margin: 12px auto; height: calc(100% - 24px); max-width: 100%; aspect-ratio: 1; }
+.tb-panel { border-left: 1px solid var(--line); padding: 12px 14px; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; }
+.tb-section { display: flex; flex-direction: column; gap: 6px; }
+.tb-tools, .tb-side { display: flex; flex-wrap: wrap; gap: 6px; }
+.tb-side .side-att[aria-pressed="true"] { background: #ff4655; border-color: #ff4655; color: #fff; }
+.tb-side .side-def[aria-pressed="true"] { background: #4aa8e0; border-color: #4aa8e0; color: #fff; }
+.tb-colors { display: flex; gap: 8px; }
+.swatch { width: 28px; height: 28px; border-radius: 50%; border: 2px solid var(--line); padding: 0; }
+.swatch[aria-pressed="true"] { border-color: var(--ink); box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--ink); }
+.tb-agents { display: grid; grid-template-columns: repeat(auto-fill, minmax(38px, 1fr)); gap: 4px; }
+.tb-agent, .tb-util { padding: 2px; border: 2px solid transparent; border-radius: 8px; background: var(--surface); aspect-ratio: 1; }
+.tb-agent img, .tb-util img { width: 100%; height: 100%; object-fit: cover; border-radius: 5px; display: block; }
+.tb-agent[aria-pressed="true"], .tb-util[aria-pressed="true"] { border-color: var(--accent); }
+.tb-utils { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.tb-util { width: 44px; background: #0b0f13; }
+.tb-util img { object-fit: contain; }
+.tb-help { line-height: 1.5; }
+@media (max-width: 900px) {
+  .strat-body.with-board { grid-template-columns: minmax(0, 1fr); }
+  .tb-body { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); overflow-y: auto; }
+  .tb-board { height: auto; width: min(100%, 70vh); }
+  .tb-panel { border-left: 0; border-top: 1px solid var(--line); overflow: visible; }
+}
+
 /* Map de la semaine */
 .week { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; border-radius: 10px; padding: 16px 18px; margin-bottom: 20px; color: #ece8e1; border: 1px solid var(--line); }
 .week-text { display: flex; flex-direction: column; line-height: 1.15; }

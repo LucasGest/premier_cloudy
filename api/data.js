@@ -20,6 +20,35 @@ const text = (max) => (v) => (typeof v === 'string' ? v.slice(0, max) : '');
 const int = (min, max) => (v) => Math.min(max, Math.max(min, Math.round(Number(v) || 0)));
 const mapId = (v) => (typeof v === 'string' && /^[a-z]{2,20}$/.test(v) ? v : null);
 
+// Tableau tactique d'une strat : des étapes, chacune une liste d'éléments posés
+// sur la minimap. Coordonnées entières de 0 à 1000. Tout est revalidé ici :
+// type connu, nombres bornés, textes tronqués, quantités plafonnées.
+const coord = (v) => Math.min(1000, Math.max(0, Math.round(Number(v) || 0)));
+const agentName = (v) => (typeof v === 'string' && /^[\w/ ]{2,20}$/.test(v) ? v : null);
+const color = (v) => Math.min(5, Math.max(0, Math.round(Number(v) || 0)));
+const ITEM = {
+  a: (it) => agentName(it.a) && { t: 'a', a: it.a, s: it.s === 'def' ? 'def' : 'att', x: coord(it.x), y: coord(it.y) },
+  u: (it) => agentName(it.a) && { t: 'u', a: it.a, i: Math.min(3, Math.max(0, Math.round(Number(it.i) || 0))), x: coord(it.x), y: coord(it.y) },
+  l: (it) => {
+    const p = Array.isArray(it.p) ? it.p.slice(0, 160).map(coord) : [];
+    return p.length >= 4 && { t: 'l', c: color(it.c), f: it.f !== false, p: p.slice(0, p.length - (p.length % 2)) };
+  },
+  z: (it) => ({ t: 'z', c: color(it.c), x: coord(it.x), y: coord(it.y), r: Math.min(300, Math.max(10, Math.round(Number(it.r) || 40))) }),
+  x: (it) => typeof it.txt === 'string' && it.txt.trim() && { t: 'x', c: color(it.c), x: coord(it.x), y: coord(it.y), txt: it.txt.trim().slice(0, 40) }
+};
+function tableau(v) {
+  const phases = Array.isArray(v?.phases) ? v.phases.slice(0, 8) : [];
+  return {
+    phases: phases.map((ph, i) => ({
+      nom: typeof ph?.nom === 'string' && ph.nom.trim() ? ph.nom.trim().slice(0, 30) : `Étape ${i + 1}`,
+      items: (Array.isArray(ph?.items) ? ph.items : [])
+        .slice(0, 120)
+        .map((it) => ITEM[it?.t]?.(it))
+        .filter(Boolean)
+    }))
+  };
+}
+
 const SCHEMAS = {
   joueurs: {
     riotId: (v) => (typeof v === 'string' && /^[^#]{3,16}#[A-Za-z0-9]{2,5}$/.test(v.trim()) ? v.trim() : ''),
@@ -39,7 +68,8 @@ const SCHEMAS = {
     cote: oneOf(COTES),
     site: oneOf(SITES),
     agents,
-    plan: text(6000)
+    plan: text(6000),
+    tableau
   },
   compos: {
     slots: (v) =>
@@ -61,7 +91,7 @@ const SCHEMAS = {
 
 // Garde-fous contre l'abus : taille d'une écriture, et 40 écritures par
 // minute et par joueur (compté par instance de fonction, suffisant ici).
-const MAX_BODY = 30000;
+const MAX_BODY = 80000; // un tableau tactique complet tient largement dedans
 const WRITES_PER_MIN = 40;
 const writes = new Map();
 function tooManyWrites(userId) {

@@ -432,7 +432,8 @@
         class: 'strat strat-form',
         onsubmit: (e) => {
           e.preventDefault();
-          save('strats', id, { map: mapId, nom: nom.value.trim(), cote: cote.value, site: site.value, agents: picker.values(), plan: plan.value });
+          // Le tableau tactique se modifie à part : on le renvoie tel quel pour ne pas l'effacer.
+          save('strats', id, { map: mapId, nom: nom.value.trim(), cote: cote.value, site: site.value, agents: picker.values(), plan: plan.value, tableau: s.tableau });
         }
       },
       h('h3', null, id ? 'Modifier la strat' : 'Nouvelle strat'),
@@ -456,7 +457,12 @@
         s.site && h('span', { class: 'tag tag-light' }, s.site === 'Mid' ? 'Mid' : `Site ${s.site}`)
       ),
       s.agents?.length ? h('div', { class: 'compo-strip' }, s.agents.map((a) => agentTag(a))) : null,
-      s.plan ? h('p', { class: 'strat-plan' }, s.plan) : h('p', { class: 'empty-text' }, 'Pas encore de plan détaillé.'),
+      h(
+        'div',
+        { class: Tableau.hasContent(s.tableau) ? 'strat-body with-board' : 'strat-body' },
+        Tableau.hasContent(s.tableau) && Tableau.view(s.tableau, s.map),
+        s.plan ? h('p', { class: 'strat-plan' }, s.plan) : h('p', { class: 'empty-text' }, 'Pas encore de plan détaillé.')
+      ),
       h(
         'div',
         { class: 'strat-foot' },
@@ -464,6 +470,20 @@
         h(
           'div',
           { class: 'toolbar' },
+          can('strats') &&
+            h(
+              'button',
+              {
+                class: 'btn',
+                onclick: () =>
+                  Tableau.edit(s.tableau, s.map, {
+                    side: s.cote === 'attaque' ? 'att' : 'def',
+                    agents: s.agents || [],
+                    onSave: (tableau) => save('strats', id, { ...s, tableau })
+                  })
+              },
+              Tableau.hasContent(s.tableau) ? 'Modifier le tableau' : 'Dessiner le tableau'
+            ),
           can('strats') && h('button', { class: 'btn', onclick: () => ((state.editing = `strats:${id}`), render()) }, 'Modifier'),
           can('strats') && h('button', { class: 'btn btn-danger', onclick: () => removeDoc('strats', id, `Supprimer la strat « ${s.nom} » ?`, 'Strat supprimée') }, 'Supprimer')
         )

@@ -27,6 +27,7 @@ Ouvrir `index.html` dans le navigateur (double-clic) : mode démo, les données 
 | `js/donnees.js` | Pool de maps et agents avec leurs visuels officiels, généré depuis valorant-api.com ; à régénérer quand Riot change le pool. |
 | `js/api.js` | Lecture et écriture des données (serveur, ou navigateur en mode démo). |
 | `js/app.js` | L'interface : onglets Équipe, Maps, Compos, Matchs. |
+| `js/tableau.js` | Le tableau tactique : aperçu avec lecture animée, éditeur plein écran. |
 | `api/` | Fonctions Vercel : `login`, `callback`, `logout` (connexion Discord), `me`, `data` (lecture et écriture), `ranks` (relit les rangs en jeu de plus de 6 heures, à chaque ouverture du site), `import` (importe les matchs Premier de l'équipe, au plus toutes les 30 minutes). |
 | `lib/` | Code partagé par les fonctions : session signée, contrôle d'accès, Firebase, rang et matchs via HenrikDev. |
 | `vercel.json` | En-têtes de sécurité envoyés avec chaque page. |
@@ -43,6 +44,10 @@ Ouvrir `index.html` dans le navigateur (double-clic) : mode démo, les données 
 
 À l'ouverture du site (au plus toutes les 30 minutes), les historiques Premier des joueurs sont lus sur HenrikDev. Un match est retenu si au moins 3 joueurs du site étaient dans la même équipe : les matchs joués avec une ancienne équipe ne remontent pas. Score, map, adversaire et stats (K/D/A, % de headshots, ACS) viennent du jeu ; le debrief s'écrit à la main et n'est jamais écrasé. L'onglet Matchs affiche aussi le taux de victoire par map, repris sur chaque fiche de map, et chaque card joueur ses moyennes (ACS, K/D, % de headshots, agent le plus joué). Un nouveau match récent (moins de 3 jours) est annoncé par le bot dans 📊・résultats.
 
+## Tableau tactique
+
+Chaque strat peut avoir un tableau dessiné sur la minimap officielle, en plusieurs étapes (setup, exec, post-plant…) : agents (cercle rouge en attaque, bleu en défense), compétences avec leurs icônes, flèches et traits à main levée, zones, textes. « + Étape » copie les agents de l'étape en cours ; il ne reste qu'à les déplacer, et la lecture les fait glisser d'une étape à l'autre. Réservé à l'IGL, comme les strats. Côté serveur, chaque élément est revalidé (coordonnées bornées, 8 étapes et 120 éléments par étape au plus).
+
 ## Map de la semaine
 
 L'IGL la choisit dans le bandeau en haut du site ; elle s'affiche sur tous les onglets et l'onglet Maps s'ouvre dessus.
@@ -56,7 +61,7 @@ Firestore, sous `premierStrats/{joueurs|reglages|maps|strats|compos|matchs}/item
 - **Connexion** : Discord OAuth avec un `state` à usage unique ; aucun mot de passe stocké.
 - **Session** : cookie `__Host-` signé (HMAC), `HttpOnly`, `Secure`, `SameSite=Lax`, 12 heures. Changer `SESSION_SECRET` déconnecte tout le monde.
 - **Accès** : rôle Premier revérifié sur Discord à chaque requête (résultat gardé 5 minutes).
-- **Écritures** : en-tête `X-Premier` obligatoire (bloque les formulaires piégés d'autres sites), champs validés et tronqués côté serveur, 30 Ko maximum par écriture, 40 écritures par minute et par joueur. Chacun ne modifie que sa propre fiche joueur.
+- **Écritures** : en-tête `X-Premier` obligatoire (bloque les formulaires piégés d'autres sites), champs validés et tronqués côté serveur, 80 Ko maximum par écriture, 40 écritures par minute et par joueur. Chacun ne modifie que sa propre fiche joueur.
 - **Navigateur** : politique de sécurité du contenu stricte (scripts du site uniquement, images de Discord et du CDN Valorant seulement), site impossible à afficher dans un cadre, HTTPS forcé, non indexé par les moteurs de recherche.
 - **Affichage** : tout le texte saisi est inséré comme texte, jamais comme HTML.
 - **Firebase** : les règles Firestore refusent tout accès direct ; seuls le bot et ce site y accèdent, avec la clé de service.
