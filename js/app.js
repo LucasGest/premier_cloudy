@@ -187,7 +187,8 @@
   function playerCard(id, p) {
     const mine = id === state.me.id;
     const rank = rankInfo(p.rang);
-    const banner = h('div', { class: 'banner' });
+    // Le statut est posé sur la bannière : il ne gêne plus les noms longs.
+    const banner = h('div', { class: 'banner' }, p.statut && h('span', { class: `badge${p.statut === 'Titulaire' ? ' badge-main' : ''}` }, p.statut));
     if (p.carte) banner.style.backgroundImage = `url("${p.carte}")`;
 
     return h(
@@ -206,8 +207,7 @@
             ? h('button', { class: 'riot-id', type: 'button', title: 'Copier le Riot ID', onclick: () => copy(p.riotId) }, p.riotId)
             : h('span', { class: 'meta' }, 'Riot ID non renseigné'),
           p.niveau ? h('span', { class: 'meta' }, `Niveau ${p.niveau}`) : null
-        ),
-        p.statut && h('span', { class: `badge${p.statut === 'Titulaire' ? ' badge-main' : ''}` }, p.statut)
+        )
       ),
       h(
         'div',
