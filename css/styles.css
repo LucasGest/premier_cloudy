@@ -110,6 +110,19 @@ label.field { display: flex; flex-direction: column; gap: 4px; font-size: 13px; 
 .slots li { display: flex; justify-content: space-between; gap: 8px; font-size: 14px; border-bottom: 1px solid var(--line); padding: 4px 0; }
 .slots li:last-child { border-bottom: 0; }
 .slots .player { color: var(--muted); }
+.compo-bilan { border-top: 1px solid var(--line); padding-top: 10px; display: flex; flex-direction: column; gap: 6px; }
+.compo-bilan h4 { margin: 0; font-family: var(--font-title); font-size: 14px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+.compo-bilan ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; }
+.compo-bilan li { display: flex; align-items: center; gap: 10px; padding: 4px 6px; border-radius: 6px; font-size: 13px; }
+.compo-bilan li.planned { background: var(--surface-2); outline: 1px solid var(--accent); }
+.compo-icons { display: flex; gap: 2px; flex: 1; min-width: 0; }
+.compo-icons .agent-icon { width: 22px; height: 22px; flex: none; }
+.compo-score { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.1; flex: none; }
+.compo-record { color: var(--muted); white-space: nowrap; font-size: 11px; }
+.compo-pct { font-family: var(--font-title); font-size: 18px; font-weight: 700; }
+.compo-pct.good { color: var(--win); }
+.compo-pct.bad { color: var(--loss); }
+.compo-bilan-empty { border-top: 1px solid var(--line); padding-top: 10px; margin: 0; }
 .slot-edit { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 
 /* Visuels : bandeaux de map, icônes d'agents */

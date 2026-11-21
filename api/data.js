@@ -2,6 +2,7 @@ const crypto = require('crypto');
 const { requireUser } = require('../lib/access');
 const { items, db } = require('../lib/firebase');
 const { fetchPlayer } = require('../lib/rank');
+const { postStrat } = require('../lib/discord');
 
 // GET    /api/data                          → { joueurs, reglages, maps, strats, compos, matchs, dispos }
 // PUT    /api/data  { collection, id, data } → enregistre (id vide = nouvelle strat ou nouveau
@@ -188,6 +189,18 @@ module.exports = async (req, res) => {
         // Fusion : un match importé garde ses stats de jeu quand on écrit son debrief.
         await ref.set(saved, { merge: true });
         return res.json({ id: docId, data: (await ref.get()).data() });
+      }
+      if (collection === 'strats') {
+        // Annonce sur Discord à la création, puis au plus une fois par
+        // demi-heure par strat, pour ne pas spammer pendant qu'on dessine.
+        const before = await ref.get();
+        const isNew = !before.exists;
+        const last = Date.parse(before.data()?.notifiedAt || '') || 0;
+        saved.notifiedAt = before.data()?.notifiedAt || null;
+        if (isNew || Date.now() - last > 30 * 60 * 1000) {
+          const ok = await postStrat(saved, isNew).catch(() => false);
+          if (ok) saved.notifiedAt = new Date().toISOString();
+        }
       }
       await ref.set(saved);
       return res.json({ id: docId, data: saved });

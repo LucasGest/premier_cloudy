@@ -581,6 +581,57 @@
     );
   }
 
+  // Compos réellement jouées sur une map, d'après les matchs importés :
+  // les 5 agents de notre équipe, regroupés, avec victoires et défaites.
+  const compoKey = (agents) => [...agents].sort().join('|');
+  function composPlayed(mapId) {
+    const groups = new Map();
+    for (const m of Object.values(state.data.matchs)) {
+      if (m.map !== mapId || !Array.isArray(m.joueurs)) continue;
+      const agents = m.joueurs.map((j) => j.agent).filter(Boolean);
+      if (agents.length !== 5) continue;
+      const key = compoKey(agents);
+      const g = groups.get(key) || { agents: [...agents].sort(), v: 0, d: 0, n: 0 };
+      g.n++;
+      if (m.scoreNous > m.scoreEux) g.v++;
+      else if (m.scoreNous < m.scoreEux) g.d++;
+      groups.set(key, g);
+    }
+    return [...groups.values()]
+      .map((g) => ({ ...g, pct: Math.round((g.v / g.n) * 100) }))
+      .sort((a, b) => b.n - a.n || b.pct - a.pct);
+  }
+
+  function compoBilan(mapId, slots) {
+    const played = composPlayed(mapId);
+    const planned = slots.filter((s) => s.agent).map((s) => s.agent);
+    const plannedKey = planned.length === 5 ? compoKey(planned) : null;
+    if (!played.length) return plannedKey ? h('p', { class: 'meta compo-bilan-empty' }, 'Pas encore de match importé avec cette compo.') : null;
+    return h(
+      'div',
+      { class: 'compo-bilan' },
+      h('h4', null, 'Compos jouées'),
+      h(
+        'ul',
+        null,
+        played.slice(0, 5).map((g) =>
+          h(
+            'li',
+            { class: compoKey(g.agents) === plannedKey ? 'planned' : null },
+            h('span', { class: 'compo-icons', title: g.agents.join(', ') }, g.agents.map((a) => agentIcon(a) || h('small', null, a))),
+            h(
+              'span',
+              { class: 'compo-score' },
+              h('span', { class: `compo-pct ${g.pct >= 50 ? 'good' : 'bad'}` }, `${g.pct} %`),
+              h('span', { class: 'compo-record' }, `${g.v} V · ${g.d} D`)
+            )
+          )
+        )
+      ),
+      plannedKey && !played.some((g) => compoKey(g.agents) === plannedKey) && h('p', { class: 'meta' }, 'La compo prévue n\'a pas encore été jouée.')
+    );
+  }
+
   function viewCompos() {
     return h(
       'div',
@@ -600,6 +651,7 @@
               ? h('ul', { class: 'slots' }, slots.map((s) => h('li', null, h('span', { class: 'slot-agent' }, agentIcon(s.agent), s.agent || '-'), h('span', { class: 'player' }, s.joueur || ''))))
               : h('p', { class: 'empty-text' }, 'Pas de compo.'),
             doc?.notes && h('p', { class: 'meta' }, doc.notes),
+            compoBilan(m.id, slots),
             metaLine(doc)
           );
         }
