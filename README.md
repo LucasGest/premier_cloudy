@@ -16,7 +16,7 @@ Ouvrir `index.html` dans le navigateur (double-clic) : mode démo, les données 
 |---|---|
 | `index.html` | La page. |
 | `css/styles.css` | Le style (sombre, clair si le système le demande). |
-| `js/donnees.js` | Pool de maps et agents, à mettre à jour quand Riot change le pool. |
+| `js/donnees.js` | Pool de maps et agents avec leurs visuels officiels, généré depuis valorant-api.com ; à régénérer quand Riot change le pool. |
 | `js/api.js` | Lecture et écriture des données (serveur, ou navigateur en mode démo). |
 | `js/app.js` | L'interface : onglets Équipe, Maps, Compos, Matchs. |
 | `api/` | Fonctions Vercel : `login`, `callback`, `logout` (connexion Discord), `me`, `data` (lecture et écriture), `ranks` (relit les rangs en jeu de plus de 6 heures, à chaque ouverture du site). |

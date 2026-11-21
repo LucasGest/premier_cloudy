@@ -1,6 +1,6 @@
 const crypto = require('crypto');
 const { getSession } = require('../lib/session');
-const { items } = require('../lib/firebase');
+const { items, db } = require('../lib/firebase');
 const { fetchPlayer } = require('../lib/rank');
 
 // GET    /api/data                          → { joueurs, maps, compos, matchs }
@@ -64,6 +64,10 @@ module.exports = async (req, res) => {
         result[name] = {};
         snap.forEach((doc) => (result[name][doc.id] = doc.data()));
       }
+      // Dernier sondage /dispos lancé par le bot sur Discord.
+      const poll = await db().collection('premierDispos').orderBy('createdAt', 'desc').limit(1).get();
+      const last = poll.docs[0]?.data();
+      result.dispos = last ? { monday: last.monday, responses: last.responses || {} } : null;
       return res.json(result);
     }
 

@@ -113,6 +113,34 @@ label.field { display: flex; flex-direction: column; gap: 4px; font-size: 13px; 
 .slots .player { color: var(--muted); }
 .slot-edit { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 
+/* Visuels : bandeaux de map, icônes d'agents */
+.map-banner { background-size: cover; background-position: center; }
+.sheet .map-banner { margin: -20px -20px 0; padding: 28px 20px 18px; border-radius: 10px 10px 0 0; color: #ece8e1; }
+.sheet .map-banner .meta { color: rgba(236, 232, 225, 0.75); }
+.sheet .map-banner h2 { font-size: 48px; }
+.map-card { overflow: hidden; }
+.map-card .map-banner { margin: -16px -16px 0; padding: 22px 16px 14px; color: #ece8e1; min-height: 72px; }
+.map-card .map-banner h3 { font-size: 26px; }
+.agent-icon { width: 22px; height: 22px; border-radius: 4px; object-fit: cover; flex: none; }
+.agent-tag { display: inline-flex; align-items: center; gap: 6px; padding: 3px 8px 3px 3px; }
+.chip { display: inline-flex; align-items: center; gap: 6px; padding-left: 3px; }
+.chip .agent-icon { width: 20px; height: 20px; border-radius: 50%; }
+.slot-agent { display: inline-flex; align-items: center; gap: 8px; }
+.match-thumb { width: 96px; height: 40px; object-fit: cover; border-radius: 6px; flex: none; }
+
+/* Dispos de la semaine */
+.section-title { font-size: 24px; }
+.section-row { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
+.dispos { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; }
+.dispo-day { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 10px; display: flex; flex-direction: column; gap: 4px; min-height: 96px; }
+.dispo-day.full { border-color: var(--win); }
+.dispo-day.full strong { color: var(--win); }
+.dispo-label { font-family: var(--font-title); font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-size: 14px; }
+.dispo-day strong { font-family: var(--font-title); font-size: 22px; }
+.dispo-day ul { margin: 0; padding: 0; list-style: none; font-size: 12px; color: var(--muted); }
+.dispo-day li { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 720px) { .dispos { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
 /* Équipe */
 .equipe { display: flex; flex-direction: column; gap: 18px; }
 .intro { margin: 0 0 10px; color: var(--muted); }
@@ -129,14 +157,14 @@ label.field { display: flex; flex-direction: column; gap: 4px; font-size: 13px; 
   margin: -16px -16px 0; height: 92px;
   background: linear-gradient(120deg, #3a1d24, var(--surface-2) 60%) center / cover no-repeat;
 }
-.player-head { display: flex; align-items: flex-end; gap: 10px; margin-top: -30px; }
-.player-head .avatar { width: 56px; height: 56px; flex: none; border: 3px solid var(--surface); background: var(--surface-2); }
+.player-head { display: flex; align-items: flex-start; gap: 10px; }
+.player-head .avatar { width: 56px; height: 56px; flex: none; margin-top: -32px; border: 3px solid var(--surface); background: var(--surface-2); }
 .avatar-empty { display: grid; place-items: center; font-weight: 600; font-size: 20px; }
-.player-name { display: flex; flex-direction: column; min-width: 0; margin-right: auto; padding-bottom: 2px; }
+.player-name { display: flex; flex-direction: column; align-items: flex-start; min-width: 0; margin-right: auto; padding-top: 6px; line-height: 1.35; }
 .player-name strong { font-size: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .riot-id { background: none; border: 0; padding: 0; text-align: left; font-size: 13px; color: var(--ink); opacity: 0.85; }
 .riot-id:hover { opacity: 1; text-decoration: underline; text-underline-offset: 3px; }
-.badge { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; border: 1px solid var(--line); border-radius: 4px; padding: 2px 6px; color: var(--muted); margin-bottom: 4px; }
+.badge { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; border: 1px solid var(--line); border-radius: 4px; padding: 2px 6px; color: var(--muted); margin-top: 8px; flex: none; }
 .badge-main { border-color: var(--accent); color: var(--accent); }
 .player-rank { display: flex; align-items: center; gap: 10px; padding: 8px 10px; background: var(--surface-2); border-radius: 8px; }
 .player-rank > div { display: flex; flex-direction: column; line-height: 1.25; }

@@ -1,6 +1,7 @@
 (function () {
   const $ = (id) => document.getElementById(id);
   const MAP_NAME = Object.fromEntries(window.MAPS.map((m) => [m.id, m.nom]));
+  const MAP_BY_ID = Object.fromEntries(window.MAPS.map((m) => [m.id, m]));
   const SECTIONS = [
     { key: 'attaque', titre: 'Attaque', aide: 'Exécutions par site, défauts, timings.' },
     { key: 'defense', titre: 'Défense', aide: 'Setups, placements, rotations.' },
@@ -51,6 +52,22 @@
     const d = new Date(iso);
     return d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }) + ' à ' + d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
   }
+  // Icône d'agent + nom (le nom reste lisible si l'image ne charge pas).
+  function agentIcon(name) {
+    const src = window.AGENT_ICONS[name];
+    return src ? h('img', { class: 'agent-icon', src, alt: '', loading: 'lazy' }) : null;
+  }
+  function agentTag(name, extra) {
+    return h('span', { class: 'agent-tag' }, agentIcon(name), name, extra && h('small', null, ` · ${extra}`));
+  }
+  // Bandeau d'image de map, avec le titre par-dessus.
+  function mapBanner(id, cls, ...children) {
+    const el = h('div', { class: cls }, ...children);
+    const map = MAP_BY_ID[id];
+    if (map) el.style.backgroundImage = `linear-gradient(90deg, rgba(15,20,25,.92), rgba(15,20,25,.35)), url("${map.banniere}")`;
+    return el;
+  }
+
   function metaLine(doc) {
     return doc?.updatedBy ? h('span', { class: 'meta' }, `Modifié par ${doc.updatedBy} le ${formatDate(doc.updatedAt)}`) : null;
   }
@@ -95,7 +112,7 @@
           'div',
           { class: 'chips' },
           names.map((n) => {
-            const b = h('button', { type: 'button', class: 'chip', 'aria-pressed': chosen.has(n) ? 'true' : 'false' }, n);
+            const b = h('button', { type: 'button', class: 'chip', 'aria-pressed': chosen.has(n) ? 'true' : 'false' }, agentIcon(n), n);
             b.addEventListener('click', () => {
               if (chosen.has(n)) chosen.delete(n);
               else if (chosen.size < MAX_AGENTS) chosen.add(n);
@@ -186,8 +203,9 @@
           { class: 'player-name' },
           h('strong', null, p.discord || 'Joueur'),
           p.riotId
-            ? h('button', { class: 'riot-id', type: 'button', title: 'Copier le Riot ID', onclick: () => copy(p.riotId) }, p.riotId, p.niveau ? h('span', { class: 'meta' }, ` · niv. ${p.niveau}`) : null)
-            : h('span', { class: 'meta' }, 'Riot ID non renseigné')
+            ? h('button', { class: 'riot-id', type: 'button', title: 'Copier le Riot ID', onclick: () => copy(p.riotId) }, p.riotId)
+            : h('span', { class: 'meta' }, 'Riot ID non renseigné'),
+          p.niveau ? h('span', { class: 'meta' }, `Niveau ${p.niveau}`) : null
         ),
         p.statut && h('span', { class: `badge${p.statut === 'Titulaire' ? ' badge-main' : ''}` }, p.statut)
       ),
@@ -202,9 +220,39 @@
           h('span', { class: 'meta' }, [p.role, p.rangAuto ? 'rang lu en jeu' : null].filter(Boolean).join(' · ') || ' ')
         )
       ),
-      p.agents?.length ? h('div', { class: 'compo-strip' }, p.agents.map((a) => h('span', { class: 'agent-tag' }, a))) : null,
+      p.agents?.length ? h('div', { class: 'compo-strip' }, p.agents.map((a) => agentTag(a))) : null,
       p.notes && h('p', { class: 'player-notes' }, p.notes),
       mine && h('button', { class: 'btn', onclick: () => ((state.editing = 'joueurs:moi'), render()) }, 'Modifier ma fiche')
+    );
+  }
+
+  // Dispos du dernier sondage /dispos (lancé sur Discord, lu ici).
+  const JOURS = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
+  function disposSection() {
+    const poll = state.data.dispos;
+    const title = h('h2', { class: 'section-title' }, 'Dispos de la semaine');
+    if (!poll) return h('section', null, title, h('p', { class: 'empty-text' }, "Aucun sondage pour l'instant. L'IGL le lance avec /dispos sur Discord."));
+
+    const start = new Date(poll.monday + 'T12:00:00Z');
+    const nameOf = (id) => state.data.joueurs[id]?.discord || 'Joueur sans fiche';
+    const days = JOURS.map((jour, i) => {
+      const date = new Date(start);
+      date.setUTCDate(start.getUTCDate() + i);
+      const ids = Object.entries(poll.responses).filter(([, d]) => d.includes(i)).map(([id]) => id);
+      return h(
+        'div',
+        { class: `dispo-day${ids.length >= 5 ? ' full' : ''}` },
+        h('span', { class: 'dispo-label' }, `${jour} ${String(date.getUTCDate()).padStart(2, '0')}/${String(date.getUTCMonth() + 1).padStart(2, '0')}`),
+        h('strong', null, `${ids.length}/5`),
+        h('ul', null, ids.map((id) => h('li', null, nameOf(id))))
+      );
+    });
+    const answered = Object.keys(poll.responses).length;
+    return h(
+      'section',
+      null,
+      h('div', { class: 'section-row' }, title, h('span', { class: 'meta' }, `Semaine du ${start.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })} · ${answered} réponse${answered > 1 ? 's' : ''} · à remplir sur Discord, salon dispos`)),
+      h('div', { class: 'dispos' }, days)
     );
   }
 
@@ -220,6 +268,7 @@
       'div',
       { class: 'equipe' },
       showForm && h('div', null, !mine && h('p', { class: 'intro' }, 'Bienvenue. Remplissez votre fiche pour apparaître dans l\'équipe.'), playerForm(mine || {})),
+      disposSection(),
       h('div', { class: 'record' }, h('div', null, h('strong', null, `${entries.length} joueur${entries.length > 1 ? 's' : ''}`))),
       entries.length
         ? h('div', { class: 'grid' }, entries.filter(([id]) => !(showForm && id === state.me.id && mine)).map(([id, p]) => playerCard(id, p)))
@@ -258,9 +307,9 @@
     const compo = state.data.compos[id];
     const editing = state.editing === `maps:${id}`;
 
-    const head = h(
-      'div',
-      { class: 'sheet-head' },
+    const head = mapBanner(
+      id,
+      'sheet-head map-banner',
       h('div', null, h('h2', null, MAP_NAME[id]), metaLine(doc)),
       !editing && h('button', { class: 'btn', onclick: () => ((state.editing = `maps:${id}`), render()) }, 'Modifier')
     );
@@ -270,7 +319,7 @@
       { class: 'block' },
       h('h3', null, 'Compo'),
       compo && compo.slots.some((s) => s.agent)
-        ? h('div', { class: 'compo-strip' }, compo.slots.filter((s) => s.agent).map((s) => h('span', { class: 'agent-tag' }, s.agent, s.joueur && h('small', null, ` · ${s.joueur}`))))
+        ? h('div', { class: 'compo-strip' }, compo.slots.filter((s) => s.agent).map((s) => agentTag(s.agent, s.joueur)))
         : h('p', { class: 'empty-text' }, "Pas encore de compo. Elle se remplit dans l'onglet Compos.")
     );
 
@@ -326,10 +375,10 @@
           const filled = slots.some((s) => s.agent);
           return h(
             'article',
-            { class: 'card' },
-            h('div', { class: 'card-head' }, h('h3', null, m.nom), h('button', { class: 'btn', onclick: () => ((state.editing = `compos:${m.id}`), render()) }, 'Modifier')),
+            { class: 'card map-card' },
+            mapBanner(m.id, 'card-head map-banner', h('h3', null, m.nom), h('button', { class: 'btn', onclick: () => ((state.editing = `compos:${m.id}`), render()) }, 'Modifier')),
             filled
-              ? h('ul', { class: 'slots' }, slots.map((s) => h('li', null, h('span', null, s.agent || '-'), h('span', { class: 'player' }, s.joueur || ''))))
+              ? h('ul', { class: 'slots' }, slots.map((s) => h('li', null, h('span', { class: 'slot-agent' }, agentIcon(s.agent), s.agent || '-'), h('span', { class: 'player' }, s.joueur || ''))))
               : h('p', { class: 'empty-text' }, 'Pas de compo.'),
             doc?.notes && h('p', { class: 'meta' }, doc.notes),
             metaLine(doc)
@@ -341,13 +390,13 @@
         return h(
           'form',
           {
-            class: 'card',
+            class: 'card map-card',
             onsubmit: (e) => {
               e.preventDefault();
               save('compos', m.id, { slots: rows.map((r) => ({ agent: r.agent.value, joueur: r.joueur.value.trim() })), notes: notes.value });
             }
           },
-          h('h3', null, m.nom),
+          mapBanner(m.id, 'card-head map-banner', h('h3', null, m.nom)),
           rows.map((r) => h('div', { class: 'slot-edit' }, r.agent, r.joueur)),
           notes,
           h('div', { class: 'toolbar' }, h('button', { class: 'btn btn-primary', type: 'submit' }, 'Enregistrer'), h('button', { class: 'btn', type: 'button', onclick: () => ((state.editing = null), render()) }, 'Annuler'))
@@ -418,6 +467,7 @@
         h(
           'div',
           { class: 'match-row' },
+          MAP_BY_ID[m.map] && h('img', { class: 'match-thumb', src: MAP_BY_ID[m.map].banniere, alt: '', loading: 'lazy' }),
           h('span', { class: 'score' }, `${m.scoreNous} - ${m.scoreEux}`),
           h('div', { class: 'match-info' }, h('strong', null, `${MAP_NAME[m.map] || m.map}${m.adversaire ? ' contre ' + m.adversaire : ''}`), h('span', { class: 'meta' }, new Date(m.date + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }))),
           h('button', { class: 'btn', onclick: () => ((state.editing = `matchs:${id}`), render()) }, 'Modifier'),
