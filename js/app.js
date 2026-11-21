@@ -2,12 +2,13 @@
   const $ = (id) => document.getElementById(id);
   const MAP_NAME = Object.fromEntries(window.MAPS.map((m) => [m.id, m.nom]));
   const MAP_BY_ID = Object.fromEntries(window.MAPS.map((m) => [m.id, m]));
-  const SECTIONS = [
-    { key: 'attaque', titre: 'Attaque', aide: 'Exécutions par site, défauts, timings.' },
-    { key: 'defense', titre: 'Défense', aide: 'Setups, placements, rotations.' },
-    { key: 'retake', titre: 'Retake', aide: 'Plans de retake par site.' },
-    { key: 'notes', titre: 'Notes', aide: 'Tout le reste.' }
+  const COTES = [
+    { key: 'attaque', titre: 'Attaque' },
+    { key: 'defense', titre: 'Défense' },
+    { key: 'retake', titre: 'Retake' }
   ];
+  const COTE_TITRE = Object.fromEntries(COTES.map((c) => [c.key, c.titre]));
+  const SITES = ['A', 'B', 'C', 'Mid'];
 
   const RANGS = ['Fer', 'Bronze', 'Argent', 'Or', 'Platine', 'Diamant', 'Ascendant', 'Immortel']
     .flatMap((r) => [1, 2, 3].map((n) => `${r} ${n}`))
@@ -18,10 +19,11 @@
 
   const state = {
     me: null,
-    data: { joueurs: {}, maps: {}, compos: {}, matchs: {} },
+    data: { joueurs: {}, maps: {}, strats: {}, compos: {}, matchs: {} },
     view: 'equipe',
     map: window.MAPS[0].id,
-    editing: null // "maps:<id>", "compos:<id>", "matchs:<id>" ou "matchs:nouveau"
+    cote: 'tous', // filtre des strats sur la fiche de map
+    editing: null // "<collection>:<id>", ou "strats:nouveau" / "matchs:nouveau"
   };
 
   // Construction du DOM : textContent partout, jamais de HTML injecté.
@@ -84,6 +86,18 @@
     }
   }
 
+  async function removeDoc(collection, id, question, done) {
+    if (!confirm(question)) return;
+    try {
+      await Api.remove(collection, id);
+      delete state.data[collection][id];
+      render();
+      toast(done);
+    } catch (e) {
+      handleError(e);
+    }
+  }
+
   function handleError(e) {
     if (e.auth) return showLogin();
     toast("Échec de l'enregistrement, réessayez");
@@ -94,16 +108,11 @@
     return h('select', null, h('option', { value: '' }, placeholder), options.map((o) => h('option', { value: o, selected: o === value }, o)));
   }
 
-  function playerForm(doc) {
-    const riotId = h('input', { placeholder: 'Pseudo#TAG', value: doc.riotId || '', maxlength: 22, required: true, pattern: '[^#]{3,16}#[A-Za-z0-9]{2,5}' });
-    const rang = select(RANGS, doc.rang, 'Rang');
-    const role = select(ROLES, doc.role, 'Rôle principal');
-    const statut = select(STATUTS, doc.statut, 'Statut');
-    const notes = h('input', { placeholder: 'Ex : à l\'aise en lurk, peut jouer smoke', value: doc.notes || '', maxlength: 300 });
-    const chosen = new Set(doc.agents || []);
-    const count = h('span', { class: 'meta' });
-
-    const chips = Object.entries(window.AGENTS).map(([r, names]) =>
+  // Choix de 5 agents maximum, en pastilles rangées par rôle.
+  function agentPicker(initial, label) {
+    const chosen = new Set(initial || []);
+    const count = h('span', { class: 'meta' }, `${chosen.size}/${MAX_AGENTS}`);
+    const groups = Object.entries(window.AGENTS).map(([r, names]) =>
       h(
         'div',
         { class: 'agent-group' },
@@ -125,7 +134,16 @@
         )
       )
     );
-    count.textContent = `${chosen.size}/${MAX_AGENTS}`;
+    return { el: h('div', { class: 'field' }, h('span', null, `${label} `, count), groups), values: () => [...chosen] };
+  }
+
+  function playerForm(doc) {
+    const riotId = h('input', { placeholder: 'Pseudo#TAG', value: doc.riotId || '', maxlength: 22, required: true, pattern: '[^#]{3,16}#[A-Za-z0-9]{2,5}' });
+    const rang = select(RANGS, doc.rang, 'Rang');
+    const role = select(ROLES, doc.role, 'Rôle principal');
+    const statut = select(STATUTS, doc.statut, 'Statut');
+    const notes = h('input', { placeholder: 'Ex : à l\'aise en lurk, peut jouer smoke', value: doc.notes || '', maxlength: 300 });
+    const picker = agentPicker(doc.agents, 'Agents joués');
 
     return h(
       'form',
@@ -138,7 +156,7 @@
             rang: rang.value,
             role: role.value,
             statut: statut.value,
-            agents: [...chosen],
+            agents: picker.values(),
             notes: notes.value.trim()
           });
         }
@@ -153,7 +171,7 @@
         h('label', { class: 'field' }, 'Statut', statut)
       ),
       h('p', { class: 'meta' }, 'Le rang se met à jour tout seul quand le Riot ID est trouvé ; sinon, celui choisi ici est gardé.'),
-      h('div', { class: 'field' }, h('span', null, 'Agents joués ', count), chips),
+      picker.el,
       h('label', { class: 'field' }, 'Notes', notes),
       h(
         'div',
@@ -277,12 +295,18 @@
   }
 
   // ---------- Maps ----------
+  function stratsOf(mapId) {
+    return Object.entries(state.data.strats)
+      .filter(([, s]) => s.map === mapId)
+      .sort((a, b) => COTES.findIndex((c) => c.key === a[1].cote) - COTES.findIndex((c) => c.key === b[1].cote) || a[1].nom.localeCompare(b[1].nom));
+  }
+
   function viewMaps() {
     const list = h(
       'nav',
       { class: 'map-list', 'aria-label': 'Maps' },
       window.MAPS.map((m) => {
-        const filled = Boolean(state.data.maps[m.id]);
+        const count = stratsOf(m.id).length;
         return h(
           'button',
           {
@@ -290,29 +314,87 @@
             'aria-current': m.id === state.map ? 'true' : 'false',
             onclick: () => {
               state.map = m.id;
+              state.cote = 'tous';
               state.editing = null;
               render();
             }
           },
           m.nom,
-          filled && h('span', { class: 'dot', title: 'Strats renseignées' })
+          count > 0 && h('span', { class: 'count', title: `${count} strat${count > 1 ? 's' : ''}` }, count)
         );
       })
     );
     return h('div', { class: 'maps-layout' }, list, mapSheet(state.map));
   }
 
+  function editButtons() {
+    return h(
+      'div',
+      { class: 'toolbar' },
+      h('button', { class: 'btn btn-primary', type: 'submit' }, 'Enregistrer'),
+      h('button', { class: 'btn', type: 'button', onclick: () => ((state.editing = null), render()) }, 'Annuler')
+    );
+  }
+
+  function stratForm(id, s, mapId) {
+    const nom = h('input', { placeholder: 'Ex : Exec A rapide', value: s.nom || '', maxlength: 60, required: true });
+    const cote = h('select', null, COTES.map((c) => h('option', { value: c.key, selected: c.key === (s.cote || (state.cote !== 'tous' ? state.cote : 'attaque')) }, c.titre)));
+    const site = h('select', null, h('option', { value: '' }, 'Aucun site précis'), SITES.map((x) => h('option', { value: x, selected: x === s.site }, x === 'Mid' ? 'Mid' : `Site ${x}`)));
+    const plan = h('textarea', { placeholder: 'Déroulé : qui fait quoi, utilitaires, timings, plan B si ça coince.', value: s.plan || '', style: 'min-height:160px' });
+    const picker = agentPicker(s.agents, 'Agents concernés');
+
+    return h(
+      'form',
+      {
+        class: 'strat strat-form',
+        onsubmit: (e) => {
+          e.preventDefault();
+          save('strats', id, { map: mapId, nom: nom.value.trim(), cote: cote.value, site: site.value, agents: picker.values(), plan: plan.value });
+        }
+      },
+      h('h3', null, id ? 'Modifier la strat' : 'Nouvelle strat'),
+      h('div', { class: 'form-grid' }, h('label', { class: 'field' }, 'Nom', nom), h('label', { class: 'field' }, 'Côté', cote), h('label', { class: 'field' }, 'Site', site)),
+      picker.el,
+      h('label', { class: 'field' }, 'Plan', plan),
+      editButtons()
+    );
+  }
+
+  function stratCard(id, s) {
+    if (state.editing === `strats:${id}`) return stratForm(id, s, s.map);
+    return h(
+      'article',
+      { class: `strat cote-${s.cote}` },
+      h(
+        'div',
+        { class: 'strat-head' },
+        h('h3', null, s.nom),
+        h('span', { class: 'tag' }, COTE_TITRE[s.cote] || s.cote),
+        s.site && h('span', { class: 'tag tag-light' }, s.site === 'Mid' ? 'Mid' : `Site ${s.site}`)
+      ),
+      s.agents?.length ? h('div', { class: 'compo-strip' }, s.agents.map((a) => agentTag(a))) : null,
+      s.plan ? h('p', { class: 'strat-plan' }, s.plan) : h('p', { class: 'empty-text' }, 'Pas encore de plan détaillé.'),
+      h(
+        'div',
+        { class: 'strat-foot' },
+        metaLine(s),
+        h(
+          'div',
+          { class: 'toolbar' },
+          h('button', { class: 'btn', onclick: () => ((state.editing = `strats:${id}`), render()) }, 'Modifier'),
+          h('button', { class: 'btn btn-danger', onclick: () => removeDoc('strats', id, `Supprimer la strat « ${s.nom} » ?`, 'Strat supprimée') }, 'Supprimer')
+        )
+      )
+    );
+  }
+
   function mapSheet(id) {
     const doc = state.data.maps[id] || {};
     const compo = state.data.compos[id];
-    const editing = state.editing === `maps:${id}`;
+    const all = stratsOf(id);
+    const shown = state.cote === 'tous' ? all : all.filter(([, s]) => s.cote === state.cote);
 
-    const head = mapBanner(
-      id,
-      'sheet-head map-banner',
-      h('div', null, h('h2', null, MAP_NAME[id]), metaLine(doc)),
-      !editing && h('button', { class: 'btn', onclick: () => ((state.editing = `maps:${id}`), render()) }, 'Modifier')
-    );
+    const head = mapBanner(id, 'sheet-head map-banner', h('div', null, h('h2', null, MAP_NAME[id]), h('span', { class: 'meta' }, `${all.length} strat${all.length > 1 ? 's' : ''}`)));
 
     const compoStrip = h(
       'div',
@@ -323,31 +405,55 @@
         : h('p', { class: 'empty-text' }, "Pas encore de compo. Elle se remplit dans l'onglet Compos.")
     );
 
-    if (!editing) {
-      const blocks = SECTIONS.map((s) =>
-        h('div', { class: 'block' }, h('h3', null, s.titre), doc[s.key] ? h('p', null, doc[s.key]) : h('p', { class: 'empty-text' }, 'Rien pour le moment.'))
+    const filters = h(
+      'div',
+      { class: 'filters', role: 'group', 'aria-label': 'Filtrer par côté' },
+      [{ key: 'tous', titre: 'Toutes' }, ...COTES].map((c) => {
+        const n = c.key === 'tous' ? all.length : all.filter(([, s]) => s.cote === c.key).length;
+        return h('button', { class: 'filter', 'aria-pressed': state.cote === c.key ? 'true' : 'false', onclick: () => ((state.cote = c.key), render()) }, `${c.titre} (${n})`);
+      })
+    );
+
+    const adding = state.editing === 'strats:nouveau';
+    const strats = h(
+      'div',
+      { class: 'block' },
+      h(
+        'div',
+        { class: 'block-head' },
+        h('h3', null, 'Strats'),
+        !adding && h('button', { class: 'btn btn-primary', onclick: () => ((state.editing = 'strats:nouveau'), render()) }, 'Nouvelle strat')
+      ),
+      filters,
+      adding && stratForm(null, {}, id),
+      shown.length
+        ? h('div', { class: 'strats' }, shown.map(([sid, s]) => stratCard(sid, s)))
+        : !adding && h('p', { class: 'empty-text' }, all.length ? 'Aucune strat de ce côté.' : 'Aucune strat sur cette map pour le moment.')
+    );
+
+    // Notes générales de la map (callouts, infos qui ne sont pas une strat).
+    const editingNotes = state.editing === `maps:${id}`;
+    let notesBlock;
+    if (editingNotes) {
+      const notes = h('textarea', { placeholder: 'Callouts, habitudes adverses, infos utiles sur la map.', value: doc.notes || '' });
+      notesBlock = h(
+        'form',
+        { class: 'block', onsubmit: (e) => (e.preventDefault(), save('maps', id, { notes: notes.value })) },
+        h('h3', null, 'Notes générales'),
+        notes,
+        editButtons()
       );
-      return h('section', { class: 'sheet' }, head, compoStrip, blocks);
+    } else {
+      notesBlock = h(
+        'div',
+        { class: 'block' },
+        h('div', { class: 'block-head' }, h('h3', null, 'Notes générales'), h('button', { class: 'btn', onclick: () => ((state.editing = `maps:${id}`), render()) }, 'Modifier')),
+        doc.notes ? h('p', null, doc.notes) : h('p', { class: 'empty-text' }, 'Rien pour le moment.'),
+        metaLine(doc)
+      );
     }
 
-    const fields = {};
-    const form = h(
-      'form',
-      {
-        class: 'sheet',
-        onsubmit: (e) => {
-          e.preventDefault();
-          save('maps', id, Object.fromEntries(SECTIONS.map((s) => [s.key, fields[s.key].value])));
-        }
-      },
-      head,
-      SECTIONS.map((s) => {
-        fields[s.key] = h('textarea', { name: s.key, placeholder: s.aide, value: doc[s.key] || '' });
-        return h('label', { class: 'field' }, s.titre, fields[s.key]);
-      }),
-      h('div', { class: 'toolbar' }, h('button', { class: 'btn btn-primary', type: 'submit' }, 'Enregistrer'), h('button', { class: 'btn', type: 'button', onclick: () => ((state.editing = null), render()) }, 'Annuler'))
-    );
-    return form;
+    return h('section', { class: 'sheet' }, head, compoStrip, strats, notesBlock);
   }
 
   // ---------- Compos ----------
@@ -471,24 +577,7 @@
           h('span', { class: 'score' }, `${m.scoreNous} - ${m.scoreEux}`),
           h('div', { class: 'match-info' }, h('strong', null, `${MAP_NAME[m.map] || m.map}${m.adversaire ? ' contre ' + m.adversaire : ''}`), h('span', { class: 'meta' }, new Date(m.date + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }))),
           h('button', { class: 'btn', onclick: () => ((state.editing = `matchs:${id}`), render()) }, 'Modifier'),
-          h(
-            'button',
-            {
-              class: 'btn btn-danger',
-              onclick: async () => {
-                if (!confirm('Supprimer ce match ?')) return;
-                try {
-                  await Api.remove('matchs', id);
-                  delete state.data.matchs[id];
-                  render();
-                  toast('Match supprimé');
-                } catch (e) {
-                  handleError(e);
-                }
-              }
-            },
-            'Supprimer'
-          )
+          h('button', { class: 'btn btn-danger', onclick: () => removeDoc('matchs', id, 'Supprimer ce match ?', 'Match supprimé') }, 'Supprimer')
         ),
         m.debrief ? h('details', null, h('summary', null, 'Debrief'), h('p', null, m.debrief)) : null,
         metaLine(m)
@@ -537,7 +626,7 @@
       const me = await Api.me();
       state.me = me;
       state.data = await Api.all();
-      for (const k of ['joueurs', 'maps', 'compos', 'matchs']) state.data[k] = state.data[k] || {};
+      for (const k of ['joueurs', 'maps', 'strats', 'compos', 'matchs']) state.data[k] = state.data[k] || {};
       $('user-name').textContent = me.name;
       if (me.avatar) {
         $('user-avatar').src = me.avatar;

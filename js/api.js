@@ -6,9 +6,9 @@
 
   function demoLoad() {
     try {
-      return JSON.parse(localStorage.getItem(KEY)) || { joueurs: {}, maps: {}, compos: {}, matchs: {} };
+      return JSON.parse(localStorage.getItem(KEY)) || { joueurs: {}, maps: {}, strats: {}, compos: {}, matchs: {} };
     } catch {
-      return { joueurs: {}, maps: {}, compos: {}, matchs: {} };
+      return { joueurs: {}, maps: {}, strats: {}, compos: {}, matchs: {} };
     }
   }
   function demoSave(all) {

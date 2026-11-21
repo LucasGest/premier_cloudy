@@ -3,15 +3,18 @@ const { getSession } = require('../lib/session');
 const { items, db } = require('../lib/firebase');
 const { fetchPlayer } = require('../lib/rank');
 
-// GET    /api/data                          → { joueurs, maps, compos, matchs }
-// PUT    /api/data  { collection, id, data } → enregistre (id vide = nouveau match ;
-//                                              pour joueurs, toujours sa propre fiche)
-// DELETE /api/data?collection=matchs&id=…    → supprime un match
+// GET    /api/data                          → { joueurs, maps, strats, compos, matchs, dispos }
+// PUT    /api/data  { collection, id, data } → enregistre (id vide = nouvelle strat ou nouveau
+//                                              match ; pour joueurs, toujours sa propre fiche)
+// DELETE /api/data?collection=strats|matchs&id=… → supprime une strat ou un match
 
 const ROLES = ['Duelliste', 'Initiateur', 'Contrôleur', 'Sentinelle', 'Flex'];
 const STATUTS = ['Titulaire', 'Remplaçant', 'Coach'];
 const RANKS = /^(Fer|Bronze|Argent|Or|Platine|Diamant|Ascendant|Immortel) [1-3]$|^Radiant$/;
+const COTES = ['attaque', 'defense', 'retake'];
+const SITES = ['A', 'B', 'C', 'Mid'];
 const oneOf = (list) => (v) => (list.includes(v) ? v : '');
+const agents = (v) => (Array.isArray(v) ? v.filter((a) => typeof a === 'string' && /^[\w/ ]{2,20}$/.test(a)).slice(0, 5) : []);
 
 const text = (max) => (v) => (typeof v === 'string' ? v.slice(0, max) : '');
 const int = (min, max) => (v) => Math.min(max, Math.max(min, Math.round(Number(v) || 0)));
@@ -22,11 +25,20 @@ const SCHEMAS = {
     riotId: (v) => (typeof v === 'string' && /^[^#]{3,16}#[A-Za-z0-9]{2,5}$/.test(v.trim()) ? v.trim() : ''),
     rang: (v) => (typeof v === 'string' && RANKS.test(v) ? v : ''),
     role: oneOf(ROLES),
-    agents: (v) => (Array.isArray(v) ? v.filter((a) => typeof a === 'string' && /^[\w/ ]{2,20}$/.test(a)).slice(0, 5) : []),
+    agents,
     statut: oneOf(STATUTS),
     notes: text(300)
   },
-  maps: { attaque: text(8000), defense: text(8000), retake: text(8000), notes: text(8000) },
+  // Une fiche par map : les notes générales. Les strats sont à part, une par document.
+  maps: { notes: text(8000) },
+  strats: {
+    map: (v) => mapId(v) || '',
+    nom: (v) => text(60)(v).trim(),
+    cote: oneOf(COTES),
+    site: oneOf(SITES),
+    agents,
+    plan: text(6000)
+  },
   compos: {
     slots: (v) =>
       Array.from({ length: 5 }, (_, i) => ({
@@ -44,6 +56,9 @@ const SCHEMAS = {
     debrief: text(8000)
   }
 };
+
+// Champs sans lesquels un document n'a pas de sens.
+const REQUIRED = { strats: ['map', 'nom', 'cote'], matchs: ['date', 'map'] };
 
 function clean(collection, data) {
   const out = {};
@@ -80,10 +95,13 @@ module.exports = async (req, res) => {
       if (!SCHEMAS[collection]) return res.status(400).json({ error: 'collection inconnue' });
 
       // Chacun ne modifie que sa propre fiche joueur, quel que soit l'id envoyé.
-      const docId = collection === 'joueurs' ? user.id : collection === 'matchs' ? id || crypto.randomUUID() : mapId(id);
+      const docId =
+        collection === 'joueurs' ? user.id : ['strats', 'matchs'].includes(collection) ? id || crypto.randomUUID() : mapId(id);
       if (!docId || !/^[\w-]{1,40}$/.test(docId)) return res.status(400).json({ error: 'identifiant invalide' });
 
       const saved = { ...clean(collection, data), updatedBy: user.name, updatedAt: new Date().toISOString() };
+      const missing = (REQUIRED[collection] || []).filter((field) => !saved[field]);
+      if (missing.length) return res.status(400).json({ error: `champs manquants : ${missing.join(', ')}` });
       if (collection === 'joueurs') {
         // Rang lu en jeu quand le Riot ID est trouvé ; sinon celui choisi à la main.
         const live = saved.riotId ? await fetchPlayer(saved.riotId) : null;
@@ -103,8 +121,8 @@ module.exports = async (req, res) => {
 
     if (req.method === 'DELETE') {
       const { collection, id } = req.query;
-      if (collection !== 'matchs' || !/^[\w-]{1,40}$/.test(id || '')) return res.status(400).json({ error: 'suppression impossible' });
-      await items('matchs').doc(id).delete();
+      if (!['strats', 'matchs'].includes(collection) || !/^[\w-]{1,40}$/.test(id || '')) return res.status(400).json({ error: 'suppression impossible' });
+      await items(collection).doc(id).delete();
       return res.json({ ok: true });
     }
 
