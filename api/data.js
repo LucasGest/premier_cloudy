@@ -198,6 +198,11 @@ module.exports = async (req, res) => {
       const saved = { ...clean(collection, data), updatedBy: user.name, updatedAt: new Date().toISOString() };
       const missing = (REQUIRED[collection] || []).filter((field) => !saved[field]);
       if (missing.length) return res.status(400).json({ error: `champs manquants : ${missing.join(', ')}` });
+      if (collection === 'compos') {
+        // Un agent ou un joueur ne peut occuper qu'une place.
+        const dup = (list) => list.some((v, i) => v && list.indexOf(v) !== i);
+        if (dup(saved.slots.map((x) => x.agent)) || dup(saved.slots.map((x) => x.joueur))) return res.status(400).json({ error: 'doublon dans la compo' });
+      }
       if (collection === 'joueurs') {
         // Rang lu en jeu quand le Riot ID est trouvé ; sinon celui choisi à la main.
         const live = saved.riotId ? await fetchPlayer(saved.riotId) : null;

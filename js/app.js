@@ -20,7 +20,7 @@
   const state = {
     me: null,
     data: { joueurs: {}, maps: {}, strats: {}, compos: {}, matchs: {}, entrainements: {} },
-    view: 'equipe',
+    view: 'accueil',
     map: window.MAPS[0].id,
     cote: 'tous', // filtre des strats sur la fiche de map
     editing: null // "<collection>:<id>", ou "strats:nouveau" / "matchs:nouveau"
@@ -272,10 +272,7 @@
           'button',
           {
             class: 'btn btn-primary',
-            onclick: () => {
-              Object.assign(state, { view: 'maps', map: current, cote: 'tous', editing: null });
-              render();
-            }
+            onclick: () => go('maps', { map: current, cote: 'tous' })
           },
           'Voir les strats'
         ),
@@ -686,7 +683,13 @@
             class: 'card map-card',
             onsubmit: (e) => {
               e.preventDefault();
-              save('compos', m.id, { slots: rows.map((r) => ({ agent: r.agent.value, joueur: r.joueur.value.trim() })), notes: notes.value });
+              const slotsOut = rows.map((r) => ({ agent: r.agent.value, joueur: r.joueur.value.trim() }));
+              const double = (list) => list.find((v, i) => v && list.indexOf(v) !== i);
+              const agentDouble = double(slotsOut.map((x) => x.agent));
+              const joueurDouble = double(slotsOut.map((x) => x.joueur));
+              if (agentDouble) return toast(`${agentDouble} est choisi deux fois`);
+              if (joueurDouble) return toast(`${joueurDouble} est placé deux fois`);
+              save('compos', m.id, { slots: slotsOut, notes: notes.value });
             }
           },
           mapBanner(m.id, 'card-head map-banner', h('h3', null, m.nom)),
@@ -1011,11 +1014,167 @@
     );
   }
 
+  // ---------- Accueil ----------
+  // Carte cliquable du résumé de la semaine : mène à l'onglet concerné.
+  function homeCard(titre, valeur, detail, view, extra) {
+    return h(
+      'button',
+      { class: 'home-card', type: 'button', onclick: () => go(view, extra) },
+      h('span', { class: 'eyebrow' }, titre),
+      h('strong', null, valeur),
+      detail && h('span', { class: 'meta' }, detail)
+    );
+  }
+
+  function viewAccueil() {
+    const mine = state.data.joueurs[state.me.id];
+    const prenom = state.me.name;
+
+    // Map de la semaine
+    const semaine = state.data.reglages.site?.mapSemaine;
+    const nStrats = semaine ? stratsOf(semaine).length : 0;
+    const mapCard = semaine
+      ? homeCard('Map de la semaine', MAP_NAME[semaine], `${nStrats} strat${nStrats > 1 ? 's' : ''} prête${nStrats > 1 ? 's' : ''}`, 'maps', { map: semaine, cote: 'tous' })
+      : homeCard('Map de la semaine', 'Pas encore choisie', "L'IGL la choisit en haut de chaque onglet", 'maps');
+    if (semaine && MAP_BY_ID[semaine]) mapCard.style.backgroundImage = `linear-gradient(90deg, rgba(15,20,25,.92), rgba(15,20,25,.55)), url("${MAP_BY_ID[semaine].banniere}")`;
+    if (semaine) mapCard.classList.add('with-image');
+
+    // Prochain entraînement
+    const today = todayIso();
+    const next = Object.values(state.data.entrainements)
+      .filter((s) => s.date >= today)
+      .sort((a, b) => `${a.date} ${a.heure}`.localeCompare(`${b.date} ${b.heure}`))[0];
+    const maReponse = next?.presences?.[state.me.id]?.statut;
+    const seanceCard = next
+      ? homeCard(
+          'Prochain entraînement',
+          `${new Date(next.date + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })} · ${next.heure.replace(':', 'h')}`,
+          `${next.type} · ${maReponse === 'oui' ? 'tu es noté présent' : maReponse === 'non' ? 'tu es noté absent' : 'indique ta présence'}`,
+          'entrainements'
+        )
+      : homeCard('Prochain entraînement', 'Aucun de prévu', "L'IGL les planifie dans l'onglet Entraînements", 'entrainements');
+    if (next && !maReponse) seanceCard.classList.add('todo');
+
+    // Dispos
+    const poll = state.data.dispos;
+    let disposCard;
+    if (poll) {
+      const counts = JOURS.map((_, i) => Object.values(poll.responses).filter((d) => d.includes(i)).length);
+      const best = Math.max(...counts);
+      const jours = JOURS.filter((_, i) => counts[i] === best && best > 0);
+      const repondu = state.me.id in poll.responses;
+      disposCard = homeCard(
+        'Dispos de la semaine',
+        best ? `${jours.join(', ')} · ${best}/5` : 'Aucune réponse',
+        repondu ? 'tu as répondu au sondage' : 'réponds au sondage /dispos sur Discord',
+        'equipe'
+      );
+      if (!repondu) disposCard.classList.add('todo');
+    } else disposCard = homeCard('Dispos de la semaine', 'Pas de sondage', "L'IGL le lance avec /dispos sur Discord", 'equipe');
+
+    // Dernier match
+    const last = Object.values(state.data.matchs).sort((a, b) => (b.date || '').localeCompare(a.date || ''))[0];
+    const total = recordOf();
+    const matchCard = last
+      ? homeCard(
+          'Dernier match',
+          `${last.scoreNous > last.scoreEux ? 'Victoire' : last.scoreNous < last.scoreEux ? 'Défaite' : 'Égalité'} ${last.scoreNous}-${last.scoreEux}`,
+          `${MAP_NAME[last.map] || last.map}${last.adversaire ? ' contre ' + last.adversaire : ''} · bilan ${total.v} V ${total.d} D`,
+          'matchs'
+        )
+      : homeCard('Dernier match', 'Pas encore joué', "Les matchs Premier s'importent tout seuls", 'matchs');
+
+    const guide = [
+      ['equipe', 'Équipe', 'La fiche de chaque joueur : Riot ID, rang lu en jeu, rôle, agents et stats moyennes en Premier. On y voit aussi les dispos du dernier sondage.', 'Remplis ta fiche une fois : ton rang et ta bannière se mettent à jour tout seuls.'],
+      ['maps', 'Maps', 'Les strats de chaque map, en attaque, en défense et en retake, avec un plan écrit et un tableau tactique animé : agents, compétences, flèches et étapes.', 'Avant un match, ouvre la map de la semaine et lance la lecture des tableaux.'],
+      ['compos', 'Compos', 'La compo prévue pour chaque map, qui joue quoi, et le bilan des compos réellement jouées en match (victoires, défaites).', "La compo choisie ici est cochée d'avance dans les nouvelles strats."],
+      ['entrainements', 'Entraînements', 'Les séances planifiées par l\'IGL : date, heure, durée, type (strats, scrim, aim...).', 'Clique sur Présent ou Absent sous chaque séance.'],
+      ['matchs', 'Matchs', "Les matchs Premier s'importent tout seuls depuis le jeu, dès que 3 joueurs du site ont joué ensemble : score, map, stats de chacun. Taux de victoire par map.", "L'IGL ajoute le debrief après chaque match."]
+    ];
+
+    return h(
+      'div',
+      { class: 'home' },
+      h(
+        'section',
+        { class: 'home-hero' },
+        h('span', { class: 'eyebrow' }, 'Équipe Premier CloudyCat'),
+        h('h1', null, `Salut ${prenom}`),
+        h('p', null, "Tout ce qu'il faut pour préparer les matchs Premier : la map de la semaine, les strats, les compos, les entraînements et les résultats."),
+        !mine &&
+          h(
+            'div',
+            { class: 'home-cta' },
+            h('p', null, 'Première visite : remplis ta fiche joueur pour apparaître dans l\'équipe et dans les compos.'),
+            h('button', { class: 'btn btn-primary', type: 'button', onclick: () => go('equipe') }, 'Remplir ma fiche')
+          )
+      ),
+      h('h2', { class: 'section-title' }, 'Cette semaine'),
+      h('div', { class: 'home-grid' }, mapCard, seanceCard, disposCard, matchCard),
+      h('h2', { class: 'section-title' }, 'Le site, onglet par onglet'),
+      h(
+        'div',
+        { class: 'guide-grid' },
+        guide.map(([view, titre, texte, astuce]) =>
+          h(
+            'article',
+            { class: 'guide-card' },
+            h('h3', null, titre),
+            h('p', null, texte),
+            h('p', { class: 'meta' }, astuce),
+            h('button', { class: 'btn', type: 'button', 'aria-label': `Ouvrir ${titre}`, onclick: () => go(view) }, 'Ouvrir')
+          )
+        )
+      ),
+      h(
+        'div',
+        { class: 'home-columns' },
+        h(
+          'section',
+          { class: 'card' },
+          h('h3', null, 'Sur Discord'),
+          h(
+            'ul',
+            { class: 'home-list' },
+            h('li', null, h('strong', null, 'dispos'), " : chaque semaine, l'IGL lance le sondage /dispos. Réponds en choisissant tes jours."),
+            h('li', null, h('strong', null, 'strats'), ' : le bot annonce chaque nouvelle strat ou modification.'),
+            h('li', null, h('strong', null, 'entraînements'), ' : le bot annonce chaque séance planifiée.'),
+            h('li', null, h('strong', null, 'résultats'), ' : le bot poste le score et le meilleur joueur après chaque match importé.')
+          )
+        ),
+        h(
+          'section',
+          { class: 'card' },
+          h('h3', null, 'Qui fait quoi'),
+          h(
+            'ul',
+            { class: 'home-list' },
+            h('li', null, h('strong', null, 'Tous les joueurs'), ' : leur fiche, les notes des maps, leur présence aux entraînements.'),
+            h('li', null, h('strong', null, 'IGL'), ' : la map de la semaine, les strats et leurs tableaux, les compos, les entraînements.'),
+            h('li', null, h('strong', null, 'Admin'), ' : les matchs (import, ajout à la main, debriefs).')
+          )
+        )
+      )
+    );
+  }
+
   // ---------- Rendu ----------
+  const VIEWS = { accueil: viewAccueil, equipe: viewEquipe, maps: viewMaps, compos: viewCompos, entrainements: viewEntrainements, matchs: viewMatchs };
+
+  // Change d'onglet ; l'onglet est gardé dans l'adresse (#maps...) pour
+  // revenir au même endroit après un rechargement.
+  function go(view, extra) {
+    Object.assign(state, { view, editing: null }, extra);
+    history.replaceState(null, '', `${location.pathname}${location.search}#${view}`);
+    render();
+    window.scrollTo(0, 0);
+  }
+
   function render() {
     document.querySelectorAll('.tab').forEach((t) => t.setAttribute('aria-selected', t.dataset.view === state.view ? 'true' : 'false'));
-    const view = { equipe: viewEquipe, maps: viewMaps, compos: viewCompos, entrainements: viewEntrainements, matchs: viewMatchs }[state.view]();
-    $('view').replaceChildren(...[weekBanner(), view].filter(Boolean));
+    const view = VIEWS[state.view]();
+    // L'accueil a son propre résumé de la map de la semaine.
+    $('view').replaceChildren(...[state.view !== 'accueil' && weekBanner(), view].filter(Boolean));
   }
 
   function showLogin(e) {
@@ -1043,13 +1202,7 @@
     location.replace('/');
   });
 
-  document.querySelectorAll('.tab').forEach((t) =>
-    t.addEventListener('click', () => {
-      state.view = t.dataset.view;
-      state.editing = null;
-      render();
-    })
-  );
+  document.querySelectorAll('.tab').forEach((t) => t.addEventListener('click', () => go(t.dataset.view)));
 
   (async function start() {
     try {
@@ -1072,7 +1225,10 @@
       }
       $('login').hidden = true;
       $('app').hidden = false;
-      history.replaceState(null, '', location.pathname + (Api.demo && location.protocol !== 'file:' ? '?demo' : ''));
+      // Onglet demandé dans l'adresse (#maps...) ; sinon l'accueil.
+      const asked = location.hash.slice(1);
+      if (VIEWS[asked]) state.view = asked;
+      history.replaceState(null, '', location.pathname + (Api.demo && location.protocol !== 'file:' ? '?demo' : '') + `#${state.view}`);
       render();
     } catch (e) {
       showLogin(e);

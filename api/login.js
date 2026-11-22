@@ -11,7 +11,9 @@ module.exports = (req, res) => {
     response_type: 'code',
     scope: 'identify',
     state,
-    prompt: 'none'
+    // Discord affiche toujours sa page d'autorisation, avec le compte utilisé :
+    // on voit tout de suite si le navigateur est connecté au mauvais compte.
+    prompt: 'consent'
   });
   addCookie(res, cookie('__Host-premier_state', state, 600));
   res.setHeader('Cache-Control', 'no-store');
