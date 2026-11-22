@@ -1,12 +1,14 @@
-/* Thème sombre par défaut, clair si le système le demande. Accent rouge Valorant. */
+/* Charte CloudyBot : violet, noir, bleu foncé. Sombre par défaut, clair si le système le demande.
+   Le vert et le rouge restent pour victoire / défaite, le rouge et le bleu pour attaque / défense. */
 :root {
-  --bg: #0f1419;
-  --surface: #172029;
-  --surface-2: #1e2933;
-  --ink: #ece8e1;
-  --muted: #8b97a3;
-  --line: #2a3642;
-  --accent: #ff4655;
+  --bg: #08080f;
+  --surface: #121a3e;
+  --surface-2: #19224d;
+  --ink: #ece9f5;
+  --muted: #9d98b3;
+  --line: #262f5e;
+  --accent: #7b2ff7;
+  --accent-2: #a77bff; /* textes d'accent : plus lisible que le violet sur fond sombre */
   --accent-ink: #ffffff;
   --win: #3ecf8e;
   --loss: #ff4655;
@@ -16,8 +18,8 @@
 }
 @media (prefers-color-scheme: light) {
   :root {
-    --bg: #f3f1ed; --surface: #ffffff; --surface-2: #f7f5f2; --ink: #0f1419; --muted: #5d6873;
-    --line: #dcd8d1; --accent: #e23345; --win: #1f9d63; --loss: #e23345; color-scheme: light;
+    --bg: #f4f2fa; --surface: #ffffff; --surface-2: #f7f5fc; --ink: #121a3e; --muted: #5f5a78;
+    --line: #ddd8ec; --accent: #6a1fe6; --accent-2: #6a1fe6; --win: #1f9d63; --loss: #e23345; color-scheme: light;
   }
 }
 
@@ -28,7 +30,7 @@ button { cursor: pointer; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 [hidden] { display: none !important; }
 
-.eyebrow { font-family: var(--font-title); font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); font-size: 13px; }
+.eyebrow { font-family: var(--font-title); font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent-2); font-size: 13px; }
 h1, h2, h3 { font-family: var(--font-title); font-weight: 700; text-transform: uppercase; letter-spacing: 0.02em; margin: 0; line-height: 1.05; }
 
 .btn {
@@ -89,7 +91,7 @@ h1, h2, h3 { font-family: var(--font-title); font-weight: 700; text-transform: u
 .sheet { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 20px; display: flex; flex-direction: column; gap: 18px; }
 .sheet-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
 .sheet-head h2 { font-size: 40px; }
-.block h3 { font-size: 16px; letter-spacing: 0.1em; color: var(--accent); margin-bottom: 6px; }
+.block h3 { font-size: 16px; letter-spacing: 0.1em; color: var(--accent-2); margin-bottom: 6px; }
 .block p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 .compo-strip { display: flex; gap: 6px; flex-wrap: wrap; }
 .agent-tag { background: var(--surface-2); border: 1px solid var(--line); border-radius: 4px; padding: 3px 8px; font-size: 13px; }
@@ -127,11 +129,11 @@ label.field { display: flex; flex-direction: column; gap: 4px; font-size: 13px; 
 
 /* Visuels : bandeaux de map, icônes d'agents */
 .map-banner { background-size: cover; background-position: center; }
-.sheet .map-banner { margin: -20px -20px 0; padding: 28px 20px 18px; border-radius: 10px 10px 0 0; color: #ece8e1; }
-.sheet .map-banner .meta { color: rgba(236, 232, 225, 0.75); }
+.sheet .map-banner { margin: -20px -20px 0; padding: 28px 20px 18px; border-radius: 10px 10px 0 0; color: #ece9f5; }
+.sheet .map-banner .meta { color: rgba(236, 233, 245, 0.75); }
 .sheet .map-banner h2 { font-size: 48px; }
 .map-card { overflow: hidden; }
-.map-card .map-banner { margin: -16px -16px 0; padding: 22px 16px 14px; color: #ece8e1; min-height: 72px; }
+.map-card .map-banner { margin: -16px -16px 0; padding: 22px 16px 14px; color: #ece9f5; min-height: 72px; }
 .map-card .map-banner h3 { font-size: 26px; }
 .agent-icon { width: 22px; height: 22px; border-radius: 4px; object-fit: cover; flex: none; }
 .agent-tag { display: inline-flex; align-items: center; gap: 6px; padding: 3px 8px 3px 3px; }
@@ -172,7 +174,7 @@ label.field { display: flex; flex-direction: column; gap: 4px; font-size: 13px; 
 .it-line { fill: none; stroke-width: 7; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 0 3px rgba(0, 0, 0, 0.8)); }
 .it-zone { fill-opacity: 0.25; stroke-width: 3; }
 .it-text { font: 700 34px var(--font-body); paint-order: stroke; stroke: #0b0f13; stroke-width: 7px; text-anchor: middle; dominant-baseline: middle; }
-.util-bg { fill: rgba(11, 15, 19, 0.88); stroke: #ece8e1; stroke-width: 2; }
+.util-bg { fill: rgba(8, 8, 15, 0.88); stroke: #ece9f5; stroke-width: 2; }
 .agent-ring { fill: #0b0f13; stroke-width: 5; }
 .side-att .agent-ring { stroke: #ff4655; }
 .side-def .agent-ring { stroke: #4aa8e0; }
@@ -191,7 +193,7 @@ body.no-scroll { overflow: hidden; }
 .tb-head strong { font-family: var(--font-title); font-size: 22px; text-transform: uppercase; }
 .tb-phases { flex: 1; }
 .tb-foot { border-bottom: 0; border-top: 1px solid var(--line); justify-content: flex-end; }
-.tb-notice { color: var(--accent); font-size: 14px; font-weight: 600; margin-right: auto; }
+.tb-notice { color: var(--accent-2); font-size: 14px; font-weight: 600; margin-right: auto; }
 .tb-body { display: grid; grid-template-columns: minmax(0, 1fr) 320px; min-height: 0; }
 .tb-board { margin: 12px auto; height: calc(100% - 24px); max-width: 100%; aspect-ratio: 1; }
 .tb-panel { border-left: 1px solid var(--line); padding: 12px 14px; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; }
@@ -219,12 +221,12 @@ body.no-scroll { overflow: hidden; }
 }
 
 /* Map de la semaine */
-.week { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; border-radius: 10px; padding: 16px 18px; margin-bottom: 20px; color: #ece8e1; border: 1px solid var(--line); }
+.week { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; border-radius: 10px; padding: 16px 18px; margin-bottom: 20px; color: #ece9f5; border: 1px solid var(--line); }
 .week-text { display: flex; flex-direction: column; line-height: 1.15; }
 .week-text strong { font-family: var(--font-title); font-size: 36px; text-transform: uppercase; letter-spacing: 0.02em; }
-.week-text .meta { color: rgba(236, 232, 225, 0.75); }
+.week-text .meta { color: rgba(236, 233, 245, 0.75); }
 .week-empty { background: var(--surface); justify-content: flex-start; padding: 10px 14px; }
-.week-select { width: auto; min-width: 200px; background: rgba(15, 20, 25, 0.85); color: #ece8e1; }
+.week-select { width: auto; min-width: 200px; background: rgba(8, 8, 15, 0.85); color: #ece9f5; }
 .week-empty .week-select { background: var(--bg); color: var(--ink); }
 
 /* Stats moyennes sur la card joueur */
@@ -238,9 +240,9 @@ body.no-scroll { overflow: hidden; }
 .winrates { margin-bottom: 20px; }
 .winrates .section-title { margin-bottom: 10px; }
 .winrate-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px; }
-.winrate { border-radius: 8px; padding: 12px 14px; display: flex; flex-direction: column; gap: 2px; color: #ece8e1; border: 1px solid var(--line); }
+.winrate { border-radius: 8px; padding: 12px 14px; display: flex; flex-direction: column; gap: 2px; color: #ece9f5; border: 1px solid var(--line); }
 .winrate strong { font-family: var(--font-title); font-size: 18px; text-transform: uppercase; letter-spacing: 0.04em; }
-.winrate .meta { color: rgba(236, 232, 225, 0.75); }
+.winrate .meta { color: rgba(236, 233, 245, 0.75); }
 .winrate-pct { font-family: var(--font-title); font-size: 30px; font-weight: 700; line-height: 1; }
 .winrate-pct.good { color: var(--win); }
 .winrate-pct.bad { color: var(--loss); }
@@ -291,7 +293,7 @@ body.no-scroll { overflow: hidden; }
 .badge {
   position: absolute; top: 10px; right: 10px;
   font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em;
-  border-radius: 4px; padding: 3px 7px; background: rgba(15, 20, 25, 0.85); color: #ece8e1;
+  border-radius: 4px; padding: 3px 7px; background: rgba(8, 8, 15, 0.85); color: #ece9f5;
 }
 .badge-main { background: var(--accent); color: var(--accent-ink); }
 .player-rank { display: flex; align-items: center; gap: 10px; padding: 8px 10px; background: var(--surface-2); border-radius: 8px; }
@@ -322,7 +324,7 @@ body.no-scroll { overflow: hidden; }
 /* Écran de chargement */
 .loader {
   position: fixed; inset: 0; z-index: 100; display: grid; place-items: center;
-  background: radial-gradient(circle at 50% 40%, rgba(255, 70, 85, 0.12), transparent 60%), var(--bg);
+  background: radial-gradient(circle at 50% 40%, rgba(123, 47, 247, 0.2), transparent 60%), var(--bg);
   transition: opacity 0.35s ease, visibility 0.35s;
 }
 .loader.done { opacity: 0; visibility: hidden; pointer-events: none; }
@@ -358,8 +360,8 @@ body.no-scroll { overflow: hidden; }
 }
 .home-card:hover { border-color: var(--accent); transform: translateY(-2px); }
 .home-card strong { font-family: var(--font-title); font-size: 24px; text-transform: uppercase; line-height: 1.1; }
-.home-card.with-image { color: #ece8e1; }
-.home-card.with-image .meta { color: rgba(236, 232, 225, 0.75); }
+.home-card.with-image { color: #ece9f5; }
+.home-card.with-image .meta { color: rgba(236, 233, 245, 0.75); }
 .home-card.todo { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
 .guide-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
 .guide-card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; display: flex; flex-direction: column; gap: 8px; }
@@ -378,9 +380,9 @@ body.no-scroll { overflow: hidden; }
 .seance-when span { color: var(--muted); font-size: 12px; }
 .seance-info { display: flex; flex-direction: column; margin-right: auto; }
 .seance-info strong { font-size: 16px; text-transform: capitalize; }
-.seance-type { color: var(--accent); font-family: var(--font-title); text-transform: uppercase; letter-spacing: 0.05em; font-size: 14px; }
+.seance-type { color: var(--accent-2); font-family: var(--font-title); text-transform: uppercase; letter-spacing: 0.05em; font-size: 14px; }
 .seance-choice { display: flex; gap: 6px; }
-.btn.chosen-oui { background: var(--win); border-color: var(--win); color: #0f1419; }
+.btn.chosen-oui { background: var(--win); border-color: var(--win); color: #08080f; }
 .btn.chosen-non { background: var(--loss); border-color: var(--loss); color: #ffffff; }
 .seance-notes { margin: 0; white-space: pre-wrap; font-size: 14px; }
 .seance-presences { display: flex; flex-direction: column; gap: 2px; font-size: 13px; }

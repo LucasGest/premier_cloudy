@@ -68,7 +68,7 @@
   function mapBanner(id, cls, ...children) {
     const el = h('div', { class: cls }, ...children);
     const map = MAP_BY_ID[id];
-    if (map) el.style.backgroundImage = `linear-gradient(90deg, rgba(15,20,25,.92), rgba(15,20,25,.35)), url("${map.banniere}")`;
+    if (map) el.style.backgroundImage = `linear-gradient(90deg, rgba(8,8,15,.92), rgba(8,8,15,.35)), url("${map.banniere}")`;
     return el;
   }
 
@@ -289,7 +289,7 @@
     // Sans bannière lue en jeu (Riot ID introuvable) : la carte Valorant par défaut, assombrie.
     banner.style.backgroundImage = p.carte
       ? `url("${p.carte}")`
-      : `linear-gradient(rgba(15,20,25,.45), rgba(15,20,25,.45)), url("${DEFAULT_CARD}")`;
+      : `linear-gradient(rgba(8,8,15,.45), rgba(8,8,15,.45)), url("${DEFAULT_CARD}")`;
 
     return h(
       'article',
@@ -1036,7 +1036,7 @@
     const mapCard = semaine
       ? homeCard('Map de la semaine', MAP_NAME[semaine], `${nStrats} strat${nStrats > 1 ? 's' : ''} prête${nStrats > 1 ? 's' : ''}`, 'maps', { map: semaine, cote: 'tous' })
       : homeCard('Map de la semaine', 'Pas encore choisie', "L'IGL la choisit en haut de chaque onglet", 'maps');
-    if (semaine && MAP_BY_ID[semaine]) mapCard.style.backgroundImage = `linear-gradient(90deg, rgba(15,20,25,.92), rgba(15,20,25,.55)), url("${MAP_BY_ID[semaine].banniere}")`;
+    if (semaine && MAP_BY_ID[semaine]) mapCard.style.backgroundImage = `linear-gradient(90deg, rgba(8,8,15,.92), rgba(8,8,15,.55)), url("${MAP_BY_ID[semaine].banniere}")`;
     if (semaine) mapCard.classList.add('with-image');
 
     // Prochain entraînement
