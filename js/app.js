@@ -1177,7 +1177,16 @@
     $('view').replaceChildren(...[state.view !== 'accueil' && weekBanner(), view].filter(Boolean));
   }
 
+  // Fondu de sortie de l'écran de chargement, puis retrait du DOM.
+  function hideLoader() {
+    const loader = $('loader');
+    if (!loader || loader.classList.contains('done')) return;
+    loader.classList.add('done');
+    setTimeout(() => loader.remove(), 400);
+  }
+
   function showLogin(e) {
+    hideLoader();
     $('app').hidden = true;
     $('login').hidden = false;
     const err = e?.retire ? 'acces' : new URLSearchParams(location.search).get('erreur');
@@ -1206,9 +1215,13 @@
 
   (async function start() {
     try {
+      // L'écran reste au moins un instant : pas de flash quand tout va vite.
+      const minDelay = new Promise((r) => setTimeout(r, 700));
       const me = await Api.me();
       state.me = me;
+      $('loader-text').textContent = `Chargement de l'équipe`;
       state.data = await Api.all();
+      await minDelay;
       for (const k of ['joueurs', 'reglages', 'maps', 'strats', 'compos', 'matchs', 'entrainements']) state.data[k] = state.data[k] || {};
       // L'onglet Maps s'ouvre sur la map de la semaine.
       if (state.data.reglages.site?.mapSemaine) state.map = state.data.reglages.site.mapSemaine;
@@ -1230,6 +1243,7 @@
       if (VIEWS[asked]) state.view = asked;
       history.replaceState(null, '', location.pathname + (Api.demo && location.protocol !== 'file:' ? '?demo' : '') + `#${state.view}`);
       render();
+      hideLoader();
     } catch (e) {
       showLogin(e);
       return;

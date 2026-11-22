@@ -10,6 +10,16 @@
   <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
+  <!-- Écran de chargement : visible jusqu'à l'arrivée des données -->
+  <div class="loader" id="loader" role="status" aria-live="polite">
+    <div class="loader-box">
+      <span class="eyebrow">CloudyCat</span>
+      <strong class="loader-title">Premier</strong>
+      <div class="loader-bar"><span></span></div>
+      <span class="loader-text" id="loader-text">Connexion</span>
+    </div>
+  </div>
+
   <!-- Écran de connexion -->
   <section class="login" id="login" hidden>
     <div class="login-box">

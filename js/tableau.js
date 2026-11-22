@@ -29,6 +29,7 @@
     return el;
   }
   const clone = (x) => JSON.parse(JSON.stringify(x));
+  const hasContent = (b) => Boolean(b?.phases?.some((p) => p.items?.length));
   const emptyBoard = () => ({ phases: [{ nom: 'Setup', items: [] }] });
 
   // Clé d'un agent d'une étape à l'autre : même agent, même camp (et rang s'il est en double).
@@ -189,12 +190,16 @@
 
     const svg = buildSvg(mapId, id);
     svg.classList.add('editing');
+    // Message affiché à côté des boutons d'enregistrement (tableau vide...).
+    const notice = h('span', { class: 'tb-notice', role: 'alert' });
+    notice.hidden = true;
     const phase = () => board.phases[state.phase];
 
     function snapshot() {
       history.push(JSON.stringify(board));
       if (history.length > 60) history.shift();
       state.dirty = true;
+      notice.hidden = true;
     }
     function redraw() {
       draw(svg, id, phase(), null);
@@ -458,6 +463,7 @@
       h(
         'div',
         { class: 'tb-foot' },
+        notice,
         h('button', { type: 'button', class: 'btn', onclick: () => close(false) }, 'Fermer sans enregistrer'),
         h('button', { type: 'button', class: 'btn btn-primary', onclick: () => close(true) }, 'Enregistrer le tableau')
       )
@@ -472,6 +478,16 @@
     async function close(save) {
       if (saving) return;
       if (!save && state.dirty && !confirm('Fermer sans enregistrer les changements ?')) return;
+      if (save && !hasContent(board)) {
+        // Rien de posé : un nouveau tableau vide n'est pas enregistré ; un
+        // tableau existant vidé à la main est supprimé après confirmation.
+        if (!hasContent(initial)) {
+          notice.textContent = 'Pose au moins un élément sur la map avant d’enregistrer.';
+          notice.hidden = false;
+          return;
+        }
+        if (!confirm('Le tableau est vide. Supprimer le tableau de cette strat ?')) return;
+      }
       if (save) {
         // L'éditeur reste ouvert tant que le serveur n'a pas confirmé :
         // en cas d'échec (réseau, limite), le dessin n'est pas perdu.
@@ -492,5 +508,5 @@
     redraw();
   }
 
-  window.Tableau = { view, edit, hasContent: (b) => Boolean(b?.phases?.some((p) => p.items?.length)) };
+  window.Tableau = { view, edit, hasContent };
 })();
