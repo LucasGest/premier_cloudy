@@ -965,7 +965,7 @@
         h('label', { class: 'field' }, 'Type', f.type)
       ),
       h('label', { class: 'field' }, 'Notes', f.notes),
-      !id && h('p', { class: 'meta' }, 'La séance sera annoncée par le bot dans le salon des entraînements.'),
+      !id && h('p', { class: 'meta' }, 'La séance sera annoncée par le bot dans le salon des entraînements, puis rappelée 2 h avant avec un ping du rôle Premier.'),
       h('div', { class: 'toolbar' }, h('button', { class: 'btn btn-primary', type: 'submit' }, 'Enregistrer'), h('button', { class: 'btn', type: 'button', onclick: () => ((state.editing = null), render()) }, 'Annuler'))
     );
   }
@@ -1161,7 +1161,7 @@
             { class: 'home-list' },
             h('li', null, h('strong', null, 'dispos'), " : chaque semaine, l'IGL lance le sondage /dispos. Réponds en choisissant tes jours."),
             h('li', null, h('strong', null, 'strats'), ' : le bot annonce chaque nouvelle strat ou modification.'),
-            h('li', null, h('strong', null, 'entraînements'), ' : le bot annonce chaque séance planifiée.'),
+            h('li', null, h('strong', null, 'entraînements'), ' : le bot annonce chaque séance planifiée, puis la rappelle 2 h avant avec un ping du rôle Premier.'),
             h('li', null, h('strong', null, 'résultats'), ' : le bot poste le score et le meilleur joueur après chaque match importé.')
           )
         ),

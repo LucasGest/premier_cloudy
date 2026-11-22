@@ -220,7 +220,11 @@ module.exports = async (req, res) => {
       const ref = items(collection).doc(docId);
       if (collection === 'entrainements') {
         // Fusion : modifier une séance garde les présences déjà données.
-        const isNew = !(await ref.get()).exists;
+        const before = await ref.get();
+        const isNew = !before.exists;
+        // Séance déplacée : le rappel du bot (2 h avant) est réarmé.
+        const prev = before.data();
+        if (prev?.reminderSentAt && (prev.date !== saved.date || prev.heure !== saved.heure)) saved.reminderSentAt = null;
         await ref.set(saved, { merge: true });
         if (isNew) await postTraining(saved).catch(() => false);
         return res.json({ id: docId, data: (await ref.get()).data() });
