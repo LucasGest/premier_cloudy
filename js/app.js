@@ -451,6 +451,23 @@
     );
   }
 
+  // Lineups de la communauté sur Tracker.gg, filtrés sur la map. Ouverts chez
+  // eux, dans un nouvel onglet : leur contenu n'est ni copié ni intégré ici.
+  function trackerLink(mapId) {
+    if (!MAP_BY_ID[mapId]) return null;
+    return h(
+      'a',
+      {
+        class: 'btn',
+        href: `https://tracker.gg/valorant/guides/clips?map=${encodeURIComponent(mapId)}`,
+        target: '_blank',
+        rel: 'noopener noreferrer',
+        title: `Lineups ${MAP_NAME[mapId]} proposés par la communauté Tracker.gg`
+      },
+      'Lineups sur Tracker ↗'
+    );
+  }
+
   function stratCard(id, s) {
     if (state.editing === `strats:${id}`) return stratForm(id, s, s.map);
     return h(
@@ -492,6 +509,7 @@
               },
               Tableau.hasContent(s.tableau) ? 'Modifier le tableau' : 'Dessiner le tableau'
             ),
+          trackerLink(s.map),
           can('strats') && h('button', { class: 'btn', onclick: () => ((state.editing = `strats:${id}`), render()) }, 'Modifier'),
           can('strats') && h('button', { class: 'btn btn-danger', onclick: () => removeDoc('strats', id, `Supprimer la strat « ${s.nom} » ?`, 'Strat supprimée') }, 'Supprimer')
         )
@@ -543,7 +561,12 @@
         'div',
         { class: 'block-head' },
         h('h3', null, 'Strats'),
-        !adding && can('strats') && h('button', { class: 'btn btn-primary', onclick: () => ((state.editing = 'strats:nouveau'), render()) }, 'Nouvelle strat')
+        h(
+          'div',
+          { class: 'toolbar' },
+          trackerLink(id),
+          !adding && can('strats') && h('button', { class: 'btn btn-primary', onclick: () => ((state.editing = 'strats:nouveau'), render()) }, 'Nouvelle strat')
+        )
       ),
       filters,
       adding && stratForm(null, {}, id),
