@@ -657,7 +657,18 @@
           );
         }
 
-        const rows = slots.map((s) => ({ agent: agentSelect(s.agent), joueur: h('input', { placeholder: 'Joueur', value: s.joueur, maxlength: 40 }) }));
+        // Joueurs de l'équipe (fiches remplies), titulaires d'abord. Un nom déjà
+        // enregistré qui n'a plus de fiche reste proposé pour ne pas le perdre.
+        const ordre = { Titulaire: 0, Remplaçant: 1, Coach: 2 };
+        const equipe = Object.values(state.data.joueurs)
+          .filter((p) => p.discord)
+          .sort((a, b) => (ordre[a.statut] ?? 3) - (ordre[b.statut] ?? 3) || a.discord.localeCompare(b.discord))
+          .map((p) => p.discord);
+        const joueurSelect = (value) => {
+          const noms = [...new Set([...equipe, ...(value ? [value] : [])])];
+          return h('select', { 'aria-label': 'Joueur' }, h('option', { value: '' }, 'Joueur'), noms.map((n) => h('option', { value: n, selected: n === value }, n)));
+        };
+        const rows = slots.map((s) => ({ agent: agentSelect(s.agent), joueur: joueurSelect(s.joueur) }));
         const notes = h('textarea', { placeholder: 'Notes (rôles, variantes...)', value: doc?.notes || '', style: 'min-height:70px' });
         return h(
           'form',
