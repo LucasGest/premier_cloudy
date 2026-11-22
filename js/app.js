@@ -478,7 +478,8 @@
                 onclick: () =>
                   Tableau.edit(s.tableau, s.map, {
                     side: s.cote === 'attaque' ? 'att' : 'def',
-                    agents: s.agents || [],
+                    // Agents de la strat, sinon ceux de la compo de la map.
+                    agents: s.agents?.length ? s.agents : (state.data.compos[s.map]?.slots || []).map((x) => x.agent).filter(Boolean),
                     onSave: (tableau) => save('strats', id, { ...s, tableau })
                   })
               },

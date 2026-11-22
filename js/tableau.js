@@ -183,7 +183,7 @@
   function edit(initial, mapId, { side = 'att', agents = [], onSave }) {
     const id = `tb${++uid}`;
     const board = clone(initial?.phases?.length ? initial : emptyBoard());
-    const state = { phase: 0, tool: 'move', color: 0, side, agent: agents[0] || 'Jett', util: 0, selected: null, dirty: false };
+    const state = { phase: 0, tool: 'move', color: 0, side, agent: agents[0] || 'Jett', util: 0, selected: null, dirty: false, allAgents: false };
     const history = [];
 
     const svg = buildSvg(mapId, id);
@@ -328,13 +328,19 @@
           ['def', 'Défense']
         ].map(([k, label]) => h('button', { type: 'button', class: `filter side-${k}`, 'aria-pressed': state.side === k ? 'true' : 'false', onclick: () => ((state.side = k), renderTools()) }, label))
       );
-      const names = [...new Set([...agents, ...Object.values(window.AGENTS).flat()])];
+      // Les agents de la strat d'abord ; la liste complète sur demande
+      // (pour placer l'équipe adverse).
+      const all = Object.values(window.AGENTS).flat();
+      const names = state.allAgents || !agents.length ? [...new Set([...agents, ...all])] : agents;
       agentBar.replaceChildren(
         ...names.map((n) => {
           const b = h('button', { type: 'button', class: 'tb-agent', title: n, 'aria-label': n, 'aria-pressed': state.agent === n ? 'true' : 'false', onclick: () => ((state.agent = n), state.tool === 'move' && (state.tool = 'agent'), renderTools()) });
           b.append(h('img', { src: window.AGENT_ICONS[n], alt: '' }));
           return b;
-        })
+        }),
+        agents.length
+          ? h('button', { type: 'button', class: 'filter tb-more', onclick: () => ((state.allAgents = !state.allAgents), renderTools()) }, state.allAgents ? 'Agents de la strat' : 'Autres agents')
+          : null
       );
       utilBar.replaceChildren(
         h('span', { class: 'meta' }, `${state.agent} :`),

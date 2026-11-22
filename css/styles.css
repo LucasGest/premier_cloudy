@@ -203,6 +203,7 @@ body.no-scroll { overflow: hidden; }
 .swatch[aria-pressed="true"] { border-color: var(--ink); box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--ink); }
 .tb-agents { display: grid; grid-template-columns: repeat(auto-fill, minmax(38px, 1fr)); gap: 4px; }
 .tb-agent, .tb-util { padding: 2px; border: 2px solid transparent; border-radius: 8px; background: var(--surface); aspect-ratio: 1; }
+.tb-more { grid-column: 1 / -1; justify-self: start; }
 .tb-agent img, .tb-util img { width: 100%; height: 100%; object-fit: cover; border-radius: 5px; display: block; }
 .tb-agent[aria-pressed="true"], .tb-util[aria-pressed="true"] { border-color: var(--accent); }
 .tb-utils { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
