@@ -884,7 +884,7 @@
         h('label', { class: 'field' }, 'Type', f.type)
       ),
       h('label', { class: 'field' }, 'Notes', f.notes),
-      !id && h('p', { class: 'meta' }, 'La séance sera annoncée par le bot dans le salon des dispos.'),
+      !id && h('p', { class: 'meta' }, 'La séance sera annoncée par le bot dans le salon des entraînements.'),
       h('div', { class: 'toolbar' }, h('button', { class: 'btn btn-primary', type: 'submit' }, 'Enregistrer'), h('button', { class: 'btn', type: 'button', onclick: () => ((state.editing = null), render()) }, 'Annuler'))
     );
   }
