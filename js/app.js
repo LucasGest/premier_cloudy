@@ -424,7 +424,9 @@
     const cote = h('select', null, COTES.map((c) => h('option', { value: c.key, selected: c.key === (s.cote || (state.cote !== 'tous' ? state.cote : 'attaque')) }, c.titre)));
     const site = h('select', null, h('option', { value: '' }, 'Aucun site précis'), SITES.map((x) => h('option', { value: x, selected: x === s.site }, x === 'Mid' ? 'Mid' : `Site ${x}`)));
     const plan = h('textarea', { placeholder: 'Déroulé : qui fait quoi, utilitaires, timings, plan B si ça coince.', value: s.plan || '', style: 'min-height:160px' });
-    const picker = agentPicker(s.agents, 'Agents concernés');
+    // Nouvelle strat : agents de la compo de la map cochés d'avance.
+    const compoAgents = (state.data.compos[mapId]?.slots || []).map((x) => x.agent).filter(Boolean);
+    const picker = agentPicker(id ? s.agents : compoAgents, 'Agents concernés');
 
     return h(
       'form',
