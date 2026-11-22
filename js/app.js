@@ -1085,11 +1085,11 @@
       : homeCard('Dernier match', 'Pas encore joué', "Les matchs Premier s'importent tout seuls", 'matchs');
 
     const guide = [
-      ['equipe', 'Équipe', 'La fiche de chaque joueur : Riot ID, rang lu en jeu, rôle, agents et stats moyennes en Premier. On y voit aussi les dispos du dernier sondage.', 'Remplis ta fiche une fois : ton rang et ta bannière se mettent à jour tout seuls.'],
-      ['maps', 'Maps', 'Les strats de chaque map, en attaque, en défense et en retake, avec un plan écrit et un tableau tactique animé : agents, compétences, flèches et étapes.', 'Avant un match, ouvre la map de la semaine et lance la lecture des tableaux.'],
-      ['compos', 'Compos', 'La compo prévue pour chaque map, qui joue quoi, et le bilan des compos réellement jouées en match (victoires, défaites).', "La compo choisie ici est cochée d'avance dans les nouvelles strats."],
-      ['entrainements', 'Entraînements', 'Les séances planifiées par l\'IGL : date, heure, durée, type (strats, scrim, aim...).', 'Clique sur Présent ou Absent sous chaque séance.'],
-      ['matchs', 'Matchs', "Les matchs Premier s'importent tout seuls depuis le jeu, dès que 3 joueurs du site ont joué ensemble : score, map, stats de chacun. Taux de victoire par map.", "L'IGL ajoute le debrief après chaque match."]
+      ['equipe', 'Équipe', 'Les fiches des joueurs, leur rang et leurs stats.', 'Remplis la tienne une fois.'],
+      ['maps', 'Maps', 'Les strats de chaque map, avec tableau tactique.', 'Lance la lecture avant un match.'],
+      ['compos', 'Compos', 'Qui joue quoi sur chaque map.', 'Avec le bilan des compos jouées.'],
+      ['entrainements', 'Entraînements', 'Les séances de la semaine.', 'Indique Présent ou Absent.'],
+      ['matchs', 'Matchs', 'Résultats importés du jeu, stats et debriefs.', 'Taux de victoire par map.']
     ];
 
     return h(
