@@ -100,6 +100,7 @@
     try {
       await Api.remove(collection, id);
       delete state.data[collection][id];
+      state.editing = null;
       render();
       toast(done);
     } catch (e) {
@@ -684,7 +685,22 @@
           mapBanner(m.id, 'card-head map-banner', h('h3', null, m.nom)),
           rows.map((r) => h('div', { class: 'slot-edit' }, r.agent, r.joueur)),
           notes,
-          h('div', { class: 'toolbar' }, h('button', { class: 'btn btn-primary', type: 'submit' }, 'Enregistrer'), h('button', { class: 'btn', type: 'button', onclick: () => ((state.editing = null), render()) }, 'Annuler'))
+          h(
+            'div',
+            { class: 'toolbar' },
+            h('button', { class: 'btn btn-primary', type: 'submit' }, 'Enregistrer'),
+            h('button', { class: 'btn', type: 'button', onclick: () => ((state.editing = null), render()) }, 'Annuler'),
+            doc &&
+              h(
+                'button',
+                {
+                  class: 'btn btn-danger',
+                  type: 'button',
+                  onclick: () => removeDoc('compos', m.id, `Supprimer la compo de ${m.nom} ?`, 'Compo supprimée')
+                },
+                'Supprimer'
+              )
+          )
         );
       })
     );

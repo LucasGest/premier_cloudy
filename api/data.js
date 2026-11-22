@@ -9,7 +9,8 @@ const { FieldValue } = require('firebase-admin/firestore');
 // PUT    /api/data  { collection, id, data } → enregistre (id vide = nouvelle strat ou nouveau
 //                                              match ; pour joueurs, toujours sa propre fiche)
 // PUT    /api/data  { collection: 'presence', id, data: { statut } } → sa présence à une séance
-// DELETE /api/data?collection=strats|matchs|entrainements&id=… → supprime
+// DELETE /api/data?collection=strats|matchs|entrainements|compos&id=… → supprime
+//                                              (compos : id = la map)
 
 const ROLES = ['Duelliste', 'Initiateur', 'Contrôleur', 'Sentinelle', 'Flex'];
 const STATUTS = ['Titulaire', 'Remplaçant', 'Coach'];
@@ -242,7 +243,8 @@ module.exports = async (req, res) => {
 
     if (req.method === 'DELETE') {
       const { collection, id } = req.query;
-      if (!LISTS.includes(collection) ||!/^[\w-]{1,40}$/.test(id || '')) return res.status(400).json({ error: 'suppression impossible' });
+      const deletable = LISTS.includes(collection) || (collection === 'compos' && mapId(id));
+      if (!deletable || !/^[\w-]{1,40}$/.test(id || '')) return res.status(400).json({ error: 'suppression impossible' });
       if (!CAN_WRITE[collection](user)) return res.status(403).json({ error: 'réservé' });
       await items(collection).doc(id).delete();
       return res.json({ ok: true });
