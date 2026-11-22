@@ -4,9 +4,10 @@ const { memberWithAccess } = require('../lib/access');
 
 const API = 'https://discord.com/api/v10';
 
-function back(res, error) {
+function back(res, error, compte) {
   res.setHeader('Cache-Control', 'no-store');
-  res.writeHead(302, { Location: error ? `/?erreur=${error}` : '/' }).end();
+  const extra = compte ? `&compte=${encodeURIComponent(String(compte).slice(0, 40))}` : '';
+  res.writeHead(302, { Location: error ? `/?erreur=${error}${extra}` : '/' }).end();
 }
 
 function sameState(a, b) {
@@ -43,7 +44,9 @@ module.exports = async (req, res) => {
     if (!/^\d{5,25}$/.test(user.id || '')) return back(res, 'connexion');
 
     const member = await memberWithAccess(user.id);
-    if (!member) return back(res, 'acces');
+    // Le nom du compte refusé est renvoyé à l'écran : on voit tout de suite
+    // si le navigateur s'est connecté avec un autre compte Discord.
+    if (!member) return back(res, 'acces', user.global_name ? `${user.global_name} (@${user.username})` : `@${user.username}`);
 
     createSession(res, {
       id: user.id,

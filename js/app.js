@@ -973,7 +973,11 @@
       connexion: 'La connexion avec Discord a échoué, réessayez.'
     };
     if (messages[err]) {
-      $('login-error').textContent = messages[err];
+      const compte = new URLSearchParams(location.search).get('compte');
+      $('login-error').textContent =
+        err === 'acces' && compte
+          ? `Accès refusé pour le compte Discord ${compte.slice(0, 60)} : il n'a pas le rôle Premier sur le serveur CloudyCat. Si ce n'est pas ton compte, déconnecte-toi de discord.com dans ce navigateur puis réessaie.`
+          : messages[err];
       $('login-error').hidden = false;
     }
   }
