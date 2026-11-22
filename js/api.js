@@ -72,6 +72,19 @@
       return { id, data: s };
     },
 
+    // Ses agents joués sur une map (3 max). Renvoie sa fiche à jour.
+    async mapAgents(map, agents) {
+      if (!DEMO) return call('PUT', '/api/data', { collection: 'mapAgents', id: map, data: { agents } });
+      const all = demoLoad();
+      const me = all.joueurs?.demo;
+      if (!me) throw new Error('fiche manquante');
+      me.mapAgents = me.mapAgents || {};
+      if (agents.length) me.mapAgents[map] = agents.slice(0, 3);
+      else delete me.mapAgents[map];
+      demoSave(all);
+      return { id: 'demo', data: me };
+    },
+
     // Import des matchs Premier depuis le jeu. force : l'administrateur passe
     // outre le délai de 30 minutes entre deux imports.
     async importMatches(force) {

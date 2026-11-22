@@ -9,6 +9,7 @@ const { FieldValue } = require('firebase-admin/firestore');
 // PUT    /api/data  { collection, id, data } → enregistre (id vide = nouvelle strat ou nouveau
 //                                              match ; pour joueurs, toujours sa propre fiche)
 // PUT    /api/data  { collection: 'presence', id, data: { statut } } → sa présence à une séance
+// PUT    /api/data  { collection: 'mapAgents', id: map, data: { agents } } → ses agents sur une map (3 max)
 // DELETE /api/data?collection=strats|matchs|entrainements|compos&id=… → supprime
 //                                              (compos : id = la map)
 
@@ -19,6 +20,7 @@ const COTES = ['attaque', 'defense', 'retake'];
 const SITES = ['A', 'B', 'C', 'Mid'];
 const TYPES_SEANCE = ['Strats', 'Scrim', 'Aim', 'Review VOD', 'Custom', 'Autre'];
 const PRESENCES = ['oui', 'non'];
+const MAX_MAP_AGENTS = 3; // agents joués par map et par joueur
 const oneOf = (list) => (v) => (list.includes(v) ? v : '');
 const agents = (v) => (Array.isArray(v) ? v.filter((a) => typeof a === 'string' && /^[\w/ ]{2,20}$/.test(a)).slice(0, 5) : []);
 
@@ -181,6 +183,17 @@ module.exports = async (req, res) => {
         return res.json({ id, data: (await ref.get()).data() });
       }
 
+      // Agents joués sur une map : chaque joueur règle les siens, dans sa propre fiche.
+      if (collection === 'mapAgents') {
+        const map = mapId(id);
+        if (!map) return res.status(400).json({ error: 'map invalide' });
+        const ref = items('joueurs').doc(user.id);
+        if (!(await ref.get()).exists) return res.status(400).json({ error: 'fiche manquante' });
+        const picked = agents(data?.agents).slice(0, MAX_MAP_AGENTS);
+        await ref.update(`mapAgents.${map}`, picked.length ? picked : FieldValue.delete());
+        return res.json({ id: user.id, data: (await ref.get()).data() });
+      }
+
       if (!SCHEMAS[collection]) return res.status(400).json({ error: 'collection inconnue' });
       if (!CAN_WRITE[collection](user)) return res.status(403).json({ error: 'réservé' });
 
@@ -216,6 +229,9 @@ module.exports = async (req, res) => {
           discord: user.name,
           avatar: user.avatar
         });
+        // Les agents par map se règlent à part : on les garde quand la fiche change.
+        const prev = (await items('joueurs').doc(docId).get()).data();
+        if (prev?.mapAgents) saved.mapAgents = prev.mapAgents;
       }
       const ref = items(collection).doc(docId);
       if (collection === 'entrainements') {

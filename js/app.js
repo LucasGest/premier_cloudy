@@ -123,9 +123,9 @@
   }
 
   // Choix de 5 agents maximum, en pastilles rangées par rôle.
-  function agentPicker(initial, label) {
+  function agentPicker(initial, label, limit = MAX_AGENTS) {
     const chosen = new Set(initial || []);
-    const count = h('span', { class: 'meta' }, `${chosen.size}/${MAX_AGENTS}`);
+    const count = h('span', { class: 'meta' }, `${chosen.size}/${limit}`);
     const groups = Object.entries(window.AGENTS).map(([r, names]) =>
       h(
         'div',
@@ -138,10 +138,10 @@
             const b = h('button', { type: 'button', class: 'chip', 'aria-pressed': chosen.has(n) ? 'true' : 'false' }, agentIcon(n), n);
             b.addEventListener('click', () => {
               if (chosen.has(n)) chosen.delete(n);
-              else if (chosen.size < MAX_AGENTS) chosen.add(n);
-              else return toast(`${MAX_AGENTS} agents maximum`);
+              else if (chosen.size < limit) chosen.add(n);
+              else return toast(`${limit} agents maximum`);
               b.setAttribute('aria-pressed', chosen.has(n) ? 'true' : 'false');
-              count.textContent = `${chosen.size}/${MAX_AGENTS}`;
+              count.textContent = `${chosen.size}/${limit}`;
             });
             return b;
           })
@@ -597,7 +597,82 @@
       );
     }
 
-    return h('section', { class: 'sheet' }, head, compoStrip, strats, notesBlock);
+    return h('section', { class: 'sheet' }, head, compoStrip, mapPoolBlock(id, { block: true }), strats, notesBlock);
+  }
+
+  // ---------- Agents des joueurs par map ----------
+  // Chaque joueur indique les agents qu'il joue sur une map (3 max) ; tout le
+  // monde voit ceux des autres. readOnly : sans bouton (formulaire de compo).
+  const MAX_MAP_AGENTS = 3;
+  async function saveMapAgents(mapId, agents) {
+    try {
+      const res = await Api.mapAgents(mapId, agents);
+      state.data.joueurs[res.id] = res.data;
+      state.editing = null;
+      render();
+      toast('Enregistré');
+    } catch (e) {
+      if (e.message === 'fiche manquante') return toast("Remplis d'abord ta fiche dans l'onglet Équipe");
+      handleError(e);
+    }
+  }
+
+  function mapPoolBlock(mapId, { readOnly = false, block = false } = {}) {
+    const mine = state.data.joueurs[state.me.id];
+    const editing = state.editing === `mapAgents:${mapId}`;
+    const ordre = { Titulaire: 0, Remplaçant: 1, Coach: 2 };
+    const players = Object.entries(state.data.joueurs)
+      .filter(([, p]) => p.mapAgents?.[mapId]?.length)
+      .sort((a, b) => (ordre[a[1].statut] ?? 3) - (ordre[b[1].statut] ?? 3) || (a[1].discord || '').localeCompare(b[1].discord || ''));
+
+    const title = h('h4', null, 'Agents des joueurs');
+    const list = players.length
+      ? h(
+          'ul',
+          { class: 'map-pool' },
+          players.map(([id, p]) =>
+            h(
+              'li',
+              { class: id === state.me.id ? 'me' : null },
+              h('span', { class: 'map-pool-name' }, p.discord || 'Joueur'),
+              h('span', { class: 'map-pool-agents' }, p.mapAgents[mapId].map((a) => h('span', { class: 'slot-agent', title: a }, agentIcon(a), a)))
+            )
+          )
+        )
+      : h('p', { class: 'meta' }, 'Personne ne l’a encore renseigné.');
+
+    if (editing && !readOnly) {
+      const picker = agentPicker(mine?.mapAgents?.[mapId] || [], `Mes agents sur ${MAP_NAME[mapId]}`, MAX_MAP_AGENTS);
+      return h(
+        'div',
+        { class: `map-pool-block${block ? ' block' : ''}` },
+        picker.el,
+        h(
+          'div',
+          { class: 'toolbar' },
+          h('button', { class: 'btn btn-primary', type: 'button', onclick: () => saveMapAgents(mapId, picker.values()) }, 'Enregistrer'),
+          h('button', { class: 'btn', type: 'button', onclick: () => ((state.editing = null), render()) }, 'Annuler')
+        )
+      );
+    }
+
+    const action =
+      !readOnly &&
+      h(
+        'button',
+        {
+          class: 'btn btn-small',
+          type: 'button',
+          onclick: () => {
+            if (!mine) return toast("Remplis d'abord ta fiche dans l'onglet Équipe");
+            state.editing = `mapAgents:${mapId}`;
+            render();
+          }
+        },
+        'Mes agents'
+      );
+
+    return h('div', { class: `map-pool-block${block ? ' block' : ''}` }, h('div', { class: 'map-pool-head' }, title, action), list);
   }
 
   // ---------- Compos ----------
@@ -683,6 +758,7 @@
               : h('p', { class: 'empty-text' }, 'Pas de compo.'),
             doc?.notes && h('p', { class: 'meta' }, doc.notes),
             compoBilan(m.id, slots),
+            mapPoolBlock(m.id),
             metaLine(doc)
           );
         }
@@ -717,6 +793,8 @@
           },
           mapBanner(m.id, 'card-head map-banner', h('h3', null, m.nom)),
           rows.map((r) => h('div', { class: 'slot-edit' }, r.agent, r.joueur)),
+          // Repère pour l'IGL : ce que chacun joue sur cette map.
+          mapPoolBlock(m.id, { readOnly: true }),
           notes,
           h(
             'div',
