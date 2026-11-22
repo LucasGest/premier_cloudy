@@ -76,6 +76,8 @@
     return doc?.updatedBy ? h('span', { class: 'meta' }, `Modifié par ${doc.updatedBy} le ${formatDate(doc.updatedAt)}`) : null;
   }
 
+  // Renvoie true si l'enregistrement a réussi (le tableau tactique s'en sert
+  // pour ne se fermer qu'une fois le dessin bien enregistré).
   async function save(collection, id, data) {
     try {
       const res = await Api.save(collection, id, data);
@@ -83,8 +85,10 @@
       state.editing = null;
       render();
       toast('Enregistré');
+      return true;
     } catch (e) {
       handleError(e);
+      return false;
     }
   }
 
@@ -435,6 +439,9 @@
         class: 'strat strat-form',
         onsubmit: (e) => {
           e.preventDefault();
+          // Filtre d'un autre côté actif : on bascule sur le côté de la strat
+          // pour qu'elle reste visible une fois enregistrée.
+          if (state.cote !== 'tous') state.cote = cote.value;
           // Le tableau tactique se modifie à part : on le renvoie tel quel pour ne pas l'effacer.
           save('strats', id, { map: mapId, nom: nom.value.trim(), cote: cote.value, site: site.value, agents: picker.values(), plan: plan.value, tableau: s.tableau });
         }
@@ -708,8 +715,26 @@
 
   // ---------- Matchs ----------
   function matchForm(id, doc) {
+    // Match importé du jeu : score, map et date viennent de Riot (et seraient
+    // réécrits au prochain import). Seul le debrief se modifie.
+    if (doc.source === 'auto') {
+      const debrief = h('textarea', { placeholder: 'Ce qui a marché, ce qui est à revoir.', value: doc.debrief || '' });
+      return h(
+        'form',
+        {
+          class: 'card',
+          onsubmit: (e) => {
+            e.preventDefault();
+            save('matchs', id, { date: doc.date, map: doc.map, adversaire: doc.adversaire, scoreNous: doc.scoreNous, scoreEux: doc.scoreEux, debrief: debrief.value });
+          }
+        },
+        h('h3', null, `Debrief · ${MAP_NAME[doc.map] || doc.map} ${doc.scoreNous}-${doc.scoreEux}${doc.adversaire ? ' contre ' + doc.adversaire : ''}`),
+        h('label', { class: 'field' }, 'Debrief', debrief),
+        editButtons()
+      );
+    }
     const f = {
-      date: h('input', { type: 'date', value: doc.date || new Date().toISOString().slice(0, 10), required: true }),
+      date: h('input', { type: 'date', value: doc.date || todayIso(), required: true }),
       map: h('select', null, window.MAPS.map((m) => h('option', { value: m.id, selected: m.id === doc.map }, m.nom))),
       adversaire: h('input', { placeholder: 'Équipe adverse', value: doc.adversaire || '', maxlength: 60 }),
       scoreNous: h('input', { type: 'number', min: 0, max: 30, value: doc.scoreNous ?? 13 }),

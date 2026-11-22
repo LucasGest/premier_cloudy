@@ -1,7 +1,8 @@
 // Tableau tactique : la minimap officielle, des étapes, et sur chaque étape des
 // agents, des compétences, des flèches, des zones et des textes.
 //   Tableau.view(board, mapId)                 -> aperçu avec lecture animée
-//   Tableau.edit(board, mapId, { side, onSave }) -> éditeur plein écran
+//   Tableau.edit(board, mapId, { side, agents, onSave }) -> éditeur plein écran
+//     (onSave peut renvoyer une promesse : false garde l'éditeur ouvert)
 // Format : { phases: [{ nom, items: [...] }] }, coordonnées de 0 à 1000.
 (function () {
   const NS = 'http://www.w3.org/2000/svg';
@@ -467,12 +468,21 @@
       else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') (e.preventDefault(), undo());
       else if ((e.key === 'Delete' || e.key === 'Backspace') && state.selected != null && !/input|textarea/i.test(e.target.tagName)) (e.preventDefault(), deleteSelected());
     }
-    function close(save) {
+    let saving = false;
+    async function close(save) {
+      if (saving) return;
       if (!save && state.dirty && !confirm('Fermer sans enregistrer les changements ?')) return;
+      if (save) {
+        // L'éditeur reste ouvert tant que le serveur n'a pas confirmé :
+        // en cas d'échec (réseau, limite), le dessin n'est pas perdu.
+        saving = true;
+        const ok = await onSave(board);
+        saving = false;
+        if (ok === false) return;
+      }
       document.removeEventListener('keydown', onKey);
       overlay.remove();
       document.body.classList.remove('no-scroll');
-      if (save) onSave(board);
     }
 
     document.addEventListener('keydown', onKey);
