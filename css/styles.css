@@ -317,6 +317,25 @@ body.no-scroll { overflow: hidden; }
 .match details p { white-space: pre-wrap; margin: 8px 0 0; }
 .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
 
+.seance { background: var(--surface); border: 1px solid var(--line); border-left: 4px solid var(--accent); border-radius: 10px; padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; }
+.seance.past { border-left-color: var(--line); opacity: 0.75; }
+.seance-row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.seance-when { display: flex; flex-direction: column; align-items: center; min-width: 64px; line-height: 1.1; }
+.seance-when strong { font-family: var(--font-title); font-size: 26px; }
+.seance-when span { color: var(--muted); font-size: 12px; }
+.seance-info { display: flex; flex-direction: column; margin-right: auto; }
+.seance-info strong { font-size: 16px; text-transform: capitalize; }
+.seance-type { color: var(--accent); font-family: var(--font-title); text-transform: uppercase; letter-spacing: 0.05em; font-size: 14px; }
+.seance-choice { display: flex; gap: 6px; }
+.btn.chosen-oui { background: var(--win); border-color: var(--win); color: #0f1419; }
+.btn.chosen-non { background: var(--loss); border-color: var(--loss); color: #ffffff; }
+.seance-notes { margin: 0; white-space: pre-wrap; font-size: 14px; }
+.seance-presences { display: flex; flex-direction: column; gap: 2px; font-size: 13px; }
+.pres-oui { color: var(--win); }
+.pres-non { color: var(--muted); }
+.past-seances { margin-top: 20px; }
+.past-seances summary { cursor: pointer; color: var(--muted); margin-bottom: 10px; }
+
 .toast {
   position: fixed; left: 50%; bottom: 24px; transform: translate(-50%, 10px); opacity: 0; pointer-events: none;
   background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 8px; font-weight: 600; font-size: 14px;
@@ -326,8 +345,8 @@ body.no-scroll { overflow: hidden; }
 
 @media (max-width: 720px) {
   .maps-layout { grid-template-columns: minmax(0, 1fr); }
-  .tabs { margin-right: 0; }
-  .tab { padding: 8px 10px; }
+  .tabs { margin-right: 0; overflow-x: auto; max-width: 100%; }
+  .tab { padding: 8px 10px; flex: none; }
   .map-list { position: static; flex-direction: row; overflow-x: auto; gap: 4px; padding-bottom: 4px; }
   .map-item { flex: none; }
   .map-item[aria-current="true"] { box-shadow: inset 0 -2px 0 var(--accent); }

@@ -19,7 +19,7 @@
 
   const state = {
     me: null,
-    data: { joueurs: {}, maps: {}, strats: {}, compos: {}, matchs: {} },
+    data: { joueurs: {}, maps: {}, strats: {}, compos: {}, matchs: {}, entrainements: {} },
     view: 'equipe',
     map: window.MAPS[0].id,
     cote: 'tous', // filtre des strats sur la fiche de map
@@ -90,7 +90,7 @@
 
   // Mêmes droits que le serveur (qui reste seul juge) : sert à masquer les boutons inutiles.
   function can(collection) {
-    if (['strats', 'compos', 'reglages'].includes(collection)) return Boolean(state.me?.igl || state.me?.admin);
+    if (['strats', 'compos', 'reglages', 'entrainements'].includes(collection)) return Boolean(state.me?.igl || state.me?.admin);
     if (collection === 'matchs') return Boolean(state.me?.admin);
     return true;
   }
@@ -109,7 +109,7 @@
 
   function handleError(e) {
     if (e.auth) return showLogin(e);
-    toast(e.message === 'réservé' ? (e.collection === 'matchs' ? "Réservé à l'administrateur" : "Réservé à l'IGL") : "Échec de l'enregistrement, réessayez");
+    toast(e.message === 'réservé' ? (e.collection === 'matchs' ? "Réservé à l'administrateur" : "Réservé à l'IGL") : e.message === 'séance introuvable' ? 'Cette séance a été supprimée' : "Échec de l'enregistrement, réessayez");
   }
 
   // ---------- Équipe ----------
@@ -845,10 +845,121 @@
     );
   }
 
+  // ---------- Entraînements ----------
+  const TYPES_SEANCE = ['Strats', 'Scrim', 'Aim', 'Review VOD', 'Custom', 'Autre'];
+  const todayIso = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+  const dureeText = (min) => (min >= 60 ? `${Math.floor(min / 60)} h${min % 60 ? String(min % 60).padStart(2, '0') : ''}` : `${min} min`);
+
+  function seanceForm(id, s) {
+    const f = {
+      date: h('input', { type: 'date', value: s.date || todayIso(), required: true }),
+      heure: h('input', { type: 'time', value: s.heure || '21:00', required: true }),
+      duree: h(
+        'select',
+        null,
+        [30, 60, 90, 120, 150, 180, 240].map((m) => h('option', { value: m, selected: m === (s.duree || 120) }, dureeText(m)))
+      ),
+      type: h('select', null, TYPES_SEANCE.map((t) => h('option', { value: t, selected: t === s.type }, t))),
+      notes: h('textarea', { placeholder: 'Programme, map travaillée, adversaire du scrim...', value: s.notes || '', maxlength: 1000, style: 'min-height:70px' })
+    };
+    return h(
+      'form',
+      {
+        class: 'card',
+        onsubmit: (e) => {
+          e.preventDefault();
+          save('entrainements', id, { date: f.date.value, heure: f.heure.value, duree: Number(f.duree.value), type: f.type.value, notes: f.notes.value });
+        }
+      },
+      h('h3', null, id ? 'Modifier la séance' : 'Nouvelle séance'),
+      h(
+        'div',
+        { class: 'form-grid' },
+        h('label', { class: 'field' }, 'Date', f.date),
+        h('label', { class: 'field' }, 'Heure', f.heure),
+        h('label', { class: 'field' }, 'Durée', f.duree),
+        h('label', { class: 'field' }, 'Type', f.type)
+      ),
+      h('label', { class: 'field' }, 'Notes', f.notes),
+      !id && h('p', { class: 'meta' }, 'La séance sera annoncée par le bot dans le salon des dispos.'),
+      h('div', { class: 'toolbar' }, h('button', { class: 'btn btn-primary', type: 'submit' }, 'Enregistrer'), h('button', { class: 'btn', type: 'button', onclick: () => ((state.editing = null), render()) }, 'Annuler'))
+    );
+  }
+
+  async function setPresence(id, statut) {
+    try {
+      const res = await Api.presence(id, statut);
+      state.data.entrainements[id] = res.data;
+      render();
+    } catch (e) {
+      handleError(e);
+    }
+  }
+
+  function seanceCard(id, s, past) {
+    if (state.editing === `entrainements:${id}`) return seanceForm(id, s);
+    const presences = Object.values(s.presences || {});
+    const oui = presences.filter((p) => p.statut === 'oui');
+    const non = presences.filter((p) => p.statut === 'non');
+    const mine = s.presences?.[state.me.id]?.statut || '';
+    const day = new Date(s.date + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+    const choice = (statut, label) =>
+      h('button', { class: `btn${mine === statut ? ` chosen-${statut}` : ''}`, type: 'button', 'aria-pressed': mine === statut ? 'true' : 'false', onclick: () => setPresence(id, mine === statut ? '' : statut) }, label);
+
+    return h(
+      'article',
+      { class: `seance${past ? ' past' : ''}` },
+      h(
+        'div',
+        { class: 'seance-row' },
+        h('div', { class: 'seance-when' }, h('strong', null, s.heure.replace(':', 'h')), h('span', null, dureeText(s.duree || 120))),
+        h('div', { class: 'seance-info' }, h('strong', null, day), h('span', { class: 'seance-type' }, s.type)),
+        !past && h('div', { class: 'seance-choice' }, choice('oui', 'Présent'), choice('non', 'Absent')),
+        can('entrainements') && h('button', { class: 'btn', onclick: () => ((state.editing = `entrainements:${id}`), render()) }, 'Modifier'),
+        can('entrainements') && h('button', { class: 'btn btn-danger', onclick: () => removeDoc('entrainements', id, 'Supprimer cette séance ?', 'Séance supprimée') }, 'Supprimer')
+      ),
+      s.notes && h('p', { class: 'seance-notes' }, s.notes),
+      h(
+        'div',
+        { class: 'seance-presences' },
+        h('span', { class: 'pres-oui' }, `${oui.length} présent${oui.length > 1 ? 's' : ''}`, oui.length ? ` : ${oui.map((p) => p.nom).join(', ')}` : ''),
+        non.length ? h('span', { class: 'pres-non' }, `${non.length} absent${non.length > 1 ? 's' : ''} : ${non.map((p) => p.nom).join(', ')}`) : null
+      )
+    );
+  }
+
+  function viewEntrainements() {
+    const today = todayIso();
+    const all = Object.entries(state.data.entrainements).sort((a, b) => `${a[1].date} ${a[1].heure}`.localeCompare(`${b[1].date} ${b[1].heure}`));
+    const upcoming = all.filter(([, s]) => s.date >= today);
+    const past = all.filter(([, s]) => s.date < today).reverse().slice(0, 10);
+
+    return h(
+      'div',
+      null,
+      h(
+        'div',
+        { class: 'record' },
+        h('div', null, h('strong', null, 'Entraînements'), h('div', { class: 'meta' }, `${upcoming.length} séance${upcoming.length > 1 ? 's' : ''} à venir`)),
+        can('entrainements') && state.editing !== 'entrainements:nouveau' && h('div', { class: 'toolbar' }, h('button', { class: 'btn btn-primary', onclick: () => ((state.editing = 'entrainements:nouveau'), render()) }, 'Planifier une séance'))
+      ),
+      h(
+        'div',
+        { class: 'matches' },
+        state.editing === 'entrainements:nouveau' && seanceForm(null, {}),
+        upcoming.length ? upcoming.map(([id, s]) => seanceCard(id, s, false)) : state.editing !== 'entrainements:nouveau' && h('p', { class: 'empty-text' }, 'Aucune séance prévue.')
+      ),
+      past.length > 0 && h('details', { class: 'past-seances' }, h('summary', null, 'Séances passées'), h('div', { class: 'matches' }, past.map(([id, s]) => seanceCard(id, s, true))))
+    );
+  }
+
   // ---------- Rendu ----------
   function render() {
     document.querySelectorAll('.tab').forEach((t) => t.setAttribute('aria-selected', t.dataset.view === state.view ? 'true' : 'false'));
-    const view = { equipe: viewEquipe, maps: viewMaps, compos: viewCompos, matchs: viewMatchs }[state.view]();
+    const view = { equipe: viewEquipe, maps: viewMaps, compos: viewCompos, entrainements: viewEntrainements, matchs: viewMatchs }[state.view]();
     $('view').replaceChildren(...[weekBanner(), view].filter(Boolean));
   }
 
@@ -886,7 +997,7 @@
       const me = await Api.me();
       state.me = me;
       state.data = await Api.all();
-      for (const k of ['joueurs', 'reglages', 'maps', 'strats', 'compos', 'matchs']) state.data[k] = state.data[k] || {};
+      for (const k of ['joueurs', 'reglages', 'maps', 'strats', 'compos', 'matchs', 'entrainements']) state.data[k] = state.data[k] || {};
       // L'onglet Maps s'ouvre sur la map de la semaine.
       if (state.data.reglages.site?.mapSemaine) state.map = state.data.reglages.site.mapSemaine;
       $('user-name').textContent = me.name;

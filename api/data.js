@@ -2,18 +2,22 @@ const crypto = require('crypto');
 const { requireUser } = require('../lib/access');
 const { items, db } = require('../lib/firebase');
 const { fetchPlayer } = require('../lib/rank');
-const { postStrat } = require('../lib/discord');
+const { postStrat, postTraining } = require('../lib/discord');
+const { FieldValue } = require('firebase-admin/firestore');
 
 // GET    /api/data                          → { joueurs, reglages, maps, strats, compos, matchs, dispos }
 // PUT    /api/data  { collection, id, data } → enregistre (id vide = nouvelle strat ou nouveau
 //                                              match ; pour joueurs, toujours sa propre fiche)
-// DELETE /api/data?collection=strats|matchs&id=… → supprime une strat ou un match
+// PUT    /api/data  { collection: 'presence', id, data: { statut } } → sa présence à une séance
+// DELETE /api/data?collection=strats|matchs|entrainements&id=… → supprime
 
 const ROLES = ['Duelliste', 'Initiateur', 'Contrôleur', 'Sentinelle', 'Flex'];
 const STATUTS = ['Titulaire', 'Remplaçant', 'Coach'];
 const RANKS = /^(Fer|Bronze|Argent|Or|Platine|Diamant|Ascendant|Immortel) [1-3]$|^Radiant$/;
 const COTES = ['attaque', 'defense', 'retake'];
 const SITES = ['A', 'B', 'C', 'Mid'];
+const TYPES_SEANCE = ['Strats', 'Scrim', 'Aim', 'Review VOD', 'Custom', 'Autre'];
+const PRESENCES = ['oui', 'non'];
 const oneOf = (list) => (v) => (list.includes(v) ? v : '');
 const agents = (v) => (Array.isArray(v) ? v.filter((a) => typeof a === 'string' && /^[\w/ ]{2,20}$/.test(a)).slice(0, 5) : []);
 
@@ -80,6 +84,15 @@ const SCHEMAS = {
       })),
     notes: text(2000)
   },
+  // Séances d'entraînement planifiées par l'IGL. Les présences sont à part
+  // (champ presences, écrit par chaque joueur pour lui-même).
+  entrainements: {
+    date: (v) => (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : ''),
+    heure: (v) => (typeof v === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(v) ? v : ''),
+    duree: int(15, 480),
+    type: oneOf(TYPES_SEANCE),
+    notes: text(1000)
+  },
   matchs: {
     date: (v) => (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : ''),
     map: (v) => mapId(v) || '',
@@ -111,11 +124,14 @@ const CAN_WRITE = {
   reglages: (u) => u.igl,
   strats: (u) => u.igl,
   compos: (u) => u.igl,
+  entrainements: (u) => u.igl,
   matchs: (u) => u.admin
 };
+// Collections où chaque document a un identifiant généré (une entrée par ajout).
+const LISTS = ['strats', 'matchs', 'entrainements'];
 
 // Champs sans lesquels un document n'a pas de sens.
-const REQUIRED = { strats: ['map', 'nom', 'cote'], matchs: ['date', 'map'] };
+const REQUIRED = { strats: ['map', 'nom', 'cote'], matchs: ['date', 'map'], entrainements: ['date', 'heure', 'type'] };
 
 function clean(collection, data) {
   const out = {};
@@ -153,6 +169,17 @@ module.exports = async (req, res) => {
         return res.status(413).json({ error: 'requête trop volumineuse' });
       }
       const { collection, id, data } = req.body || {};
+
+      // Présence à une séance : chaque joueur ne touche que sa propre réponse.
+      if (collection === 'presence') {
+        if (!/^[\w-]{1,40}$/.test(id || '')) return res.status(400).json({ error: 'identifiant invalide' });
+        const ref = items('entrainements').doc(id);
+        if (!(await ref.get()).exists) return res.status(404).json({ error: 'séance introuvable' });
+        const statut = PRESENCES.includes(data?.statut) ? data.statut : null;
+        await ref.update(`presences.${user.id}`, statut ? { statut, nom: user.name } : FieldValue.delete());
+        return res.json({ id, data: (await ref.get()).data() });
+      }
+
       if (!SCHEMAS[collection]) return res.status(400).json({ error: 'collection inconnue' });
       if (!CAN_WRITE[collection](user)) return res.status(403).json({ error: 'réservé' });
 
@@ -162,7 +189,7 @@ module.exports = async (req, res) => {
           ? user.id
           : collection === 'reglages'
             ? 'site'
-            : ['strats', 'matchs'].includes(collection)
+            : LISTS.includes(collection)
               ? id || crypto.randomUUID()
               : mapId(id);
       if (!docId || !/^[\w-]{1,40}$/.test(docId)) return res.status(400).json({ error: 'identifiant invalide' });
@@ -185,6 +212,13 @@ module.exports = async (req, res) => {
         });
       }
       const ref = items(collection).doc(docId);
+      if (collection === 'entrainements') {
+        // Fusion : modifier une séance garde les présences déjà données.
+        const isNew = !(await ref.get()).exists;
+        await ref.set(saved, { merge: true });
+        if (isNew) await postTraining(saved).catch(() => false);
+        return res.json({ id: docId, data: (await ref.get()).data() });
+      }
       if (collection === 'matchs') {
         // Fusion : un match importé garde ses stats de jeu quand on écrit son debrief.
         await ref.set(saved, { merge: true });
@@ -208,7 +242,7 @@ module.exports = async (req, res) => {
 
     if (req.method === 'DELETE') {
       const { collection, id } = req.query;
-      if (!['strats', 'matchs'].includes(collection) || !/^[\w-]{1,40}$/.test(id || '')) return res.status(400).json({ error: 'suppression impossible' });
+      if (!LISTS.includes(collection) ||!/^[\w-]{1,40}$/.test(id || '')) return res.status(400).json({ error: 'suppression impossible' });
       if (!CAN_WRITE[collection](user)) return res.status(403).json({ error: 'réservé' });
       await items(collection).doc(id).delete();
       return res.json({ ok: true });

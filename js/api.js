@@ -59,6 +59,19 @@
       return { id: docId, data: saved };
     },
 
+    // Sa présence à une séance d'entraînement : 'oui', 'non', ou '' pour retirer.
+    async presence(id, statut) {
+      if (!DEMO) return call('PUT', '/api/data', { collection: 'presence', id, data: { statut } });
+      const all = demoLoad();
+      const s = all.entrainements?.[id];
+      if (!s) throw new Error('séance introuvable');
+      s.presences = s.presences || {};
+      if (statut) s.presences.demo = { statut, nom: 'Démo' };
+      else delete s.presences.demo;
+      demoSave(all);
+      return { id, data: s };
+    },
+
     // Import des matchs Premier depuis le jeu. force : l'administrateur passe
     // outre le délai de 30 minutes entre deux imports.
     async importMatches(force) {
