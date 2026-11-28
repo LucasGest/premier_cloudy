@@ -2,6 +2,16 @@
   const $ = (id) => document.getElementById(id);
   const MAP_NAME = Object.fromEntries(window.MAPS.map((m) => [m.id, m.nom]));
   const MAP_BY_ID = Object.fromEntries(window.MAPS.map((m) => [m.id, m]));
+  // Image de map allégée : Vercel la convertit en WebP à la bonne largeur et la garde en cache
+  // (l'original pèse plus de 2 Mo). En mode démo, hors Vercel, on garde l'original.
+  const mapImage = (map, width = 1280) =>
+    Api.demo ? map.splash : `/_vercel/image?url=${encodeURIComponent(map.splash)}&w=${width}&q=70`;
+  // Précharge les images de toutes les maps en arrière-plan, une fois le site affiché.
+  function preloadMapImages() {
+    const run = () => window.MAPS.forEach((m) => (new Image().src = mapImage(m)));
+    if (window.requestIdleCallback) requestIdleCallback(run, { timeout: 3000 });
+    else setTimeout(run, 1500);
+  }
   const COTES = [
     { key: 'attaque', titre: 'Attaque' },
     { key: 'defense', titre: 'Défense' },
@@ -68,7 +78,7 @@
   function mapBanner(id, cls, ...children) {
     const el = h('div', { class: cls }, ...children);
     const map = MAP_BY_ID[id];
-    if (map) el.style.backgroundImage = `linear-gradient(90deg, rgba(8,8,15,.92), rgba(8,8,15,.35)), url("${map.splash}")`;
+    if (map) el.style.backgroundImage = `linear-gradient(90deg, rgba(8,8,15,.92), rgba(8,8,15,.35)), url("${mapImage(map)}")`;
     return el;
   }
 
@@ -972,7 +982,7 @@
         h(
           'div',
           { class: 'match-row' },
-          MAP_BY_ID[m.map] && h('img', { class: 'match-thumb', src: MAP_BY_ID[m.map].splash, alt: '', loading: 'lazy' }),
+          MAP_BY_ID[m.map] && h('img', { class: 'match-thumb', src: mapImage(MAP_BY_ID[m.map], 480), alt: '', loading: 'lazy' }),
           h('span', { class: 'score' }, `${m.scoreNous} - ${m.scoreEux}`),
           h(
             'div',
@@ -1204,7 +1214,7 @@
           : null),
       past && can('entrainements') && state.editing !== `bilan:${id}` && h('button', { class: 'btn btn-link', type: 'button', onclick: () => ((state.editing = `bilan:${id}`), render()) }, s.bilan?.texte || s.bilan?.note ? 'Modifier le bilan' : 'Écrire le bilan')
     );
-    if (s.map && MAP_BY_ID[s.map]) card.style.backgroundImage = `linear-gradient(90deg, rgba(8,8,15,.94), rgba(8,8,15,.7)), url("${MAP_BY_ID[s.map].splash}")`;
+    if (s.map && MAP_BY_ID[s.map]) card.style.backgroundImage = `linear-gradient(90deg, rgba(8,8,15,.94), rgba(8,8,15,.7)), url("${mapImage(MAP_BY_ID[s.map])}")`;
     return card;
   }
 
@@ -1284,7 +1294,7 @@
     const mapCard = semaine
       ? homeCard('Map de la semaine', MAP_NAME[semaine], `${nStrats} strat${nStrats > 1 ? 's' : ''} prête${nStrats > 1 ? 's' : ''}`, 'maps', { map: semaine, cote: 'tous' })
       : homeCard('Map de la semaine', 'Pas encore choisie', "L'IGL la choisit en haut de chaque onglet", 'maps');
-    if (semaine && MAP_BY_ID[semaine]) mapCard.style.backgroundImage = `linear-gradient(90deg, rgba(8,8,15,.92), rgba(8,8,15,.55)), url("${MAP_BY_ID[semaine].splash}")`;
+    if (semaine && MAP_BY_ID[semaine]) mapCard.style.backgroundImage = `linear-gradient(90deg, rgba(8,8,15,.92), rgba(8,8,15,.55)), url("${mapImage(MAP_BY_ID[semaine])}")`;
     if (semaine) mapCard.classList.add('with-image');
 
     // Prochain entraînement
@@ -1471,6 +1481,7 @@
       state.data = await Api.all();
       await minDelay;
       for (const k of ['joueurs', 'reglages', 'maps', 'strats', 'compos', 'matchs', 'entrainements']) state.data[k] = state.data[k] || {};
+      preloadMapImages();
       // L'onglet Maps s'ouvre sur la map de la semaine.
       if (state.data.reglages.site?.mapSemaine) state.map = state.data.reglages.site.mapSemaine;
       $('user-name').textContent = me.name;
