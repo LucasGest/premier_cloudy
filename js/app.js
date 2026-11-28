@@ -1161,7 +1161,7 @@
     const mine = s.presences?.[state.me.id]?.statut || '';
     const day = new Date(s.date + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
     const choice = (statut) =>
-      h('button', { class: `btn${mine === statut ? ` chosen-${statut}` : ''}`, type: 'button', 'aria-pressed': mine === statut ? 'true' : 'false', onclick: () => setPresence(id, mine === statut ? '' : statut) }, PRESENCE_LABELS[statut]);
+      h('button', { class: `btn presence-${statut}${mine === statut ? ` chosen-${statut}` : ''}`, type: 'button', 'aria-pressed': mine === statut ? 'true' : 'false', onclick: () => setPresence(id, mine === statut ? '' : statut) }, PRESENCE_LABELS[statut]);
     const manque = EQUIPE_COMPLETE - nbPresents;
     const objectifs = s.objectifs || [];
 
