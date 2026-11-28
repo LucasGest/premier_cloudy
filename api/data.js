@@ -19,7 +19,8 @@ const RANKS = /^(Fer|Bronze|Argent|Or|Platine|Diamant|Ascendant|Immortel) [1-3]$
 const COTES = ['attaque', 'defense', 'retake'];
 const SITES = ['A', 'B', 'C', 'Mid'];
 const TYPES_SEANCE = ['Strats', 'Scrim', 'Aim', 'Review VOD', 'Custom', 'Autre'];
-const PRESENCES = ['oui', 'non'];
+// oui, en retard (compte comme présent), peut-être, non
+const PRESENCES = ['oui', 'retard', 'peutetre', 'non'];
 const MAX_MAP_AGENTS = 3; // agents joués par map et par joueur
 const oneOf = (list) => (v) => (list.includes(v) ? v : '');
 const agents = (v) => (Array.isArray(v) ? v.filter((a) => typeof a === 'string' && /^[\w/ ]{2,20}$/.test(a)).slice(0, 5) : []);
@@ -94,7 +95,20 @@ const SCHEMAS = {
     heure: (v) => (typeof v === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(v) ? v : ''),
     duree: int(15, 480),
     type: oneOf(TYPES_SEANCE),
-    notes: text(1000)
+    notes: text(1000),
+    // Programme : map travaillée et objectifs à cocher
+    map: (v) => mapId(v) || '',
+    objectifs: (v) =>
+      (Array.isArray(v) ? v : [])
+        .slice(0, 12)
+        .map((o) => ({ texte: text(80)(o?.texte).trim(), fait: o?.fait === true }))
+        .filter((o) => o.texte),
+    // Bilan écrit par l'IGL après la séance, note de 0 (aucune) à 5
+    bilan: (v) => ({ texte: text(2000)(v?.texte), note: int(0, 5)(v?.note) }),
+    // Séances récurrentes : même identifiant de série, rang dans la série, nombre total
+    serie: (v) => (typeof v === 'string' && /^[w-]{1,40}$/.test(v) ? v : ''),
+    serieIndex: int(0, 7),
+    serieTotal: int(1, 8)
   },
   matchs: {
     date: (v) => (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : ''),
@@ -242,7 +256,8 @@ module.exports = async (req, res) => {
         const prev = before.data();
         if (prev?.reminderSentAt && (prev.date !== saved.date || prev.heure !== saved.heure)) saved.reminderSentAt = null;
         await ref.set(saved, { merge: true });
-        if (isNew) await postTraining(saved).catch(() => false);
+        // Une série n'est annoncée qu'une fois, à sa première séance.
+        if (isNew && !(saved.serie && saved.serieIndex > 0)) await postTraining(saved).catch(() => false);
         return res.json({ id: docId, data: (await ref.get()).data() });
       }
       if (collection === 'matchs') {

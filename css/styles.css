@@ -569,3 +569,32 @@ textarea:focus, input:focus, select:focus { border-color: var(--accent-2); outli
   .home-hero, .sheet { padding: 22px; }
   .sheet .map-banner { margin: -22px -22px 0; padding: 26px 22px 18px; }
 }
+
+/* Entraînements : programme, présences, bilan, assiduité */
+.seance.with-image { background-size: cover; background-position: center; color: #ece9f5; }
+.seance.with-image .meta, .seance.with-image .seance-when span { color: rgba(236, 233, 245, 0.75); }
+.seance-badge { font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 999px; white-space: nowrap; }
+.seance-badge.ok { background: var(--win); color: #08080f; }
+.seance-badge.warn { background: rgba(255, 170, 60, 0.18); color: #ffb347; border: 1px solid rgba(255, 170, 60, 0.45); }
+.seance-choice { flex-wrap: wrap; }
+.btn.chosen-retard { background: #ffb347; border-color: #ffb347; color: #08080f; }
+.btn.chosen-peutetre { background: #8f8aa3; border-color: #8f8aa3; color: #08080f; }
+.pres-peutetre { color: #b8b3c9; }
+.objectifs { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: 14px; }
+.objectifs label { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.objectifs li.fait { opacity: 0.6; text-decoration: line-through; }
+.btn-link { background: none; border: none; padding: 0; color: var(--accent-2); text-decoration: underline; cursor: pointer; align-self: flex-start; font-size: 13px; }
+.bilan { border-top: 1px solid var(--line); padding-top: 8px; }
+.bilan p { margin: 4px 0 0; white-space: pre-wrap; font-size: 14px; }
+.bilan .stars, .bilan-form select { color: #ffd166; letter-spacing: 2px; }
+.bilan-form { display: flex; flex-direction: column; gap: 8px; border-top: 1px solid var(--line); padding-top: 8px; }
+.assiduite { margin: 16px 0; display: flex; flex-direction: column; gap: 6px; }
+.assiduite h3 { margin: 0 0 4px; }
+.assiduite-row { display: grid; grid-template-columns: minmax(90px, 160px) 1fr auto; align-items: center; gap: 10px; font-size: 14px; }
+.assiduite-nom { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.assiduite-barre { height: 8px; background: var(--line); border-radius: 999px; overflow: hidden; }
+.assiduite-barre span { display: block; height: 100%; border-radius: 999px; }
+.assiduite-barre .haut { background: var(--win); }
+.assiduite-barre .moyen { background: #ffb347; }
+.assiduite-barre .bas { background: var(--loss); }
+.assiduite-pct { color: var(--muted); font-size: 12px; white-space: nowrap; }

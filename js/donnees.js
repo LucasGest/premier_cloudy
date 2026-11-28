@@ -79,6 +79,13 @@ window.MAPS = [
     "minimap": "https://media.valorant-api.com/maps/d960549e-485c-e861-8d71-aa9d1aed12a2/displayicon.png"
   },
   {
+    "id": "summit",
+    "nom": "Summit",
+    "banniere": "https://media.valorant-api.com/maps/756da597-416b-c0f2-f47b-afbdf28670bc/listviewicon.png",
+    "splash": "https://media.valorant-api.com/maps/756da597-416b-c0f2-f47b-afbdf28670bc/splash.png",
+    "minimap": "https://media.valorant-api.com/maps/756da597-416b-c0f2-f47b-afbdf28670bc/displayicon.png"
+  },
+  {
     "id": "sunset",
     "nom": "Sunset",
     "banniere": "https://media.valorant-api.com/maps/92584fbe-486a-b1b2-9faa-39b0f486b498/listviewicon.png",

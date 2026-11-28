@@ -68,7 +68,7 @@
   function mapBanner(id, cls, ...children) {
     const el = h('div', { class: cls }, ...children);
     const map = MAP_BY_ID[id];
-    if (map) el.style.backgroundImage = `linear-gradient(90deg, rgba(8,8,15,.92), rgba(8,8,15,.35)), url("${map.banniere}")`;
+    if (map) el.style.backgroundImage = `linear-gradient(90deg, rgba(8,8,15,.92), rgba(8,8,15,.35)), url("${map.splash}")`;
     return el;
   }
 
@@ -972,7 +972,7 @@
         h(
           'div',
           { class: 'match-row' },
-          MAP_BY_ID[m.map] && h('img', { class: 'match-thumb', src: MAP_BY_ID[m.map].banniere, alt: '', loading: 'lazy' }),
+          MAP_BY_ID[m.map] && h('img', { class: 'match-thumb', src: MAP_BY_ID[m.map].splash, alt: '', loading: 'lazy' }),
           h('span', { class: 'score' }, `${m.scoreNous} - ${m.scoreEux}`),
           h(
             'div',
@@ -1012,6 +1012,34 @@
   };
   const dureeText = (min) => (min >= 60 ? `${Math.floor(min / 60)} h${min % 60 ? String(min % 60).padStart(2, '0') : ''}` : `${min} min`);
 
+  // Présences possibles : « en retard » compte comme présent.
+  const PRESENCE_LABELS = { oui: 'Présent', retard: 'En retard', peutetre: 'Peut-être', non: 'Absent' };
+  const EQUIPE_COMPLETE = 5;
+  const isPresent = (p) => p.statut === 'oui' || p.statut === 'retard';
+
+  // Toutes les données d'une séance, pour l'enregistrer sans rien perdre.
+  const seanceData = (s, patch) => ({
+    date: s.date,
+    heure: s.heure,
+    duree: s.duree || 120,
+    type: s.type,
+    notes: s.notes || '',
+    map: s.map || '',
+    objectifs: s.objectifs || [],
+    bilan: s.bilan || { texte: '', note: 0 },
+    serie: s.serie || '',
+    serieIndex: s.serieIndex || 0,
+    serieTotal: s.serieTotal || 1,
+    ...patch
+  });
+
+  // Date ISO décalée de n semaines.
+  const plusWeeks = (iso, n) => {
+    const d = new Date(iso + 'T12:00:00');
+    d.setDate(d.getDate() + 7 * n);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+
   function seanceForm(id, s) {
     const f = {
       date: h('input', { type: 'date', value: s.date || todayIso(), required: true }),
@@ -1022,17 +1050,47 @@
         [30, 60, 90, 120, 150, 180, 240].map((m) => h('option', { value: m, selected: m === (s.duree || 120) }, dureeText(m)))
       ),
       type: h('select', null, TYPES_SEANCE.map((t) => h('option', { value: t, selected: t === s.type }, t))),
-      notes: h('textarea', { placeholder: 'Programme, map travaillée, adversaire du scrim...', value: s.notes || '', maxlength: 1000, style: 'min-height:70px' })
+      map: h('select', null, h('option', { value: '' }, 'Aucune'), window.MAPS.map((m) => h('option', { value: m.id, selected: m.id === s.map }, m.nom))),
+      repeter: h('select', null, [1, 2, 3, 4, 6, 8].map((n) => h('option', { value: n }, n === 1 ? 'Une seule fois' : `Chaque semaine, ${n} séances`))),
+      objectifs: h('textarea', {
+        placeholder: 'Un objectif par ligne : retakes B, exécutions A, anti-éco...',
+        value: (s.objectifs || []).map((o) => o.texte).join('\n'),
+        style: 'min-height:70px'
+      }),
+      notes: h('textarea', { placeholder: 'Programme, adversaire du scrim...', value: s.notes || '', maxlength: 1000, style: 'min-height:60px' })
     };
+
+    async function submit(e) {
+      e.preventDefault();
+      // Garde l'état « fait » des objectifs qui n'ont pas changé.
+      const done = new Set((s.objectifs || []).filter((o) => o.fait).map((o) => o.texte));
+      const objectifs = f.objectifs.value
+        .split('\n')
+        .map((t) => t.trim())
+        .filter(Boolean)
+        .slice(0, 12)
+        .map((texte) => ({ texte, fait: done.has(texte) }));
+      const base = seanceData(s, { date: f.date.value, heure: f.heure.value, duree: Number(f.duree.value), type: f.type.value, notes: f.notes.value, map: f.map.value, objectifs });
+      const total = id ? 1 : Number(f.repeter.value);
+      if (total === 1) return save('entrainements', id, base);
+      // Série : une séance par semaine, annoncée une seule fois par le bot.
+      const serie = crypto.randomUUID ? crypto.randomUUID() : String(Date.now());
+      try {
+        for (let k = 0; k < total; k++) {
+          const res = await Api.save('entrainements', null, { ...base, date: plusWeeks(base.date, k), serie, serieIndex: k, serieTotal: total });
+          state.data.entrainements[res.id] = res.data;
+        }
+        state.editing = null;
+        render();
+        toast(`${total} séances planifiées`);
+      } catch (err) {
+        handleError(err);
+      }
+    }
+
     return h(
       'form',
-      {
-        class: 'card',
-        onsubmit: (e) => {
-          e.preventDefault();
-          save('entrainements', id, { date: f.date.value, heure: f.heure.value, duree: Number(f.duree.value), type: f.type.value, notes: f.notes.value });
-        }
-      },
+      { class: 'card', onsubmit: submit },
       h('h3', null, id ? 'Modifier la séance' : 'Nouvelle séance'),
       h(
         'div',
@@ -1040,10 +1098,13 @@
         h('label', { class: 'field' }, 'Date', f.date),
         h('label', { class: 'field' }, 'Heure', f.heure),
         h('label', { class: 'field' }, 'Durée', f.duree),
-        h('label', { class: 'field' }, 'Type', f.type)
+        h('label', { class: 'field' }, 'Type', f.type),
+        h('label', { class: 'field' }, 'Map travaillée', f.map),
+        !id && h('label', { class: 'field' }, 'Répéter', f.repeter)
       ),
+      h('label', { class: 'field' }, 'Objectifs', f.objectifs),
       h('label', { class: 'field' }, 'Notes', f.notes),
-      !id && h('p', { class: 'meta' }, 'La séance sera annoncée par le bot dans le salon des entraînements, puis rappelée 2 h avant avec un ping du rôle Premier.'),
+      !id && h('p', { class: 'meta' }, 'La séance sera annoncée par le bot dans le salon des entraînements (une seule fois pour une série), puis rappelée 2 h avant avec un ping du rôle Premier.'),
       h('div', { class: 'toolbar' }, h('button', { class: 'btn btn-primary', type: 'submit' }, 'Enregistrer'), h('button', { class: 'btn', type: 'button', onclick: () => ((state.editing = null), render()) }, 'Annuler'))
     );
   }
@@ -1058,34 +1119,118 @@
     }
   }
 
+  // Cocher un objectif enregistre la séance entière (l'IGL seulement).
+  async function toggleObjectif(id, s, index) {
+    const objectifs = (s.objectifs || []).map((o, i) => (i === index ? { ...o, fait: !o.fait } : o));
+    try {
+      const res = await Api.save('entrainements', id, seanceData(s, { objectifs }));
+      state.data.entrainements[id] = res.data;
+      render();
+    } catch (e) {
+      handleError(e);
+    }
+  }
+
+  function bilanForm(id, s) {
+    const note = h('select', null, [0, 1, 2, 3, 4, 5].map((n) => h('option', { value: n, selected: n === (s.bilan?.note || 0) }, n ? '★'.repeat(n) : 'Pas de note')));
+    const texte = h('textarea', { placeholder: 'Ce qui a marché, ce qui est à retravailler...', value: s.bilan?.texte || '', maxlength: 2000, style: 'min-height:90px' });
+    return h(
+      'form',
+      { class: 'bilan-form', onsubmit: (e) => (e.preventDefault(), save('entrainements', id, seanceData(s, { bilan: { texte: texte.value, note: Number(note.value) } }))) },
+      h('label', { class: 'field' }, 'Note de la séance', note),
+      h('label', { class: 'field' }, 'Bilan', texte),
+      h('div', { class: 'toolbar' }, h('button', { class: 'btn btn-primary', type: 'submit' }, 'Enregistrer le bilan'), h('button', { class: 'btn', type: 'button', onclick: () => ((state.editing = null), render()) }, 'Annuler'))
+    );
+  }
+
   function seanceCard(id, s, past) {
     if (state.editing === `entrainements:${id}`) return seanceForm(id, s);
     const presences = Object.values(s.presences || {});
-    const oui = presences.filter((p) => p.statut === 'oui');
-    const non = presences.filter((p) => p.statut === 'non');
+    const by = (statut) => presences.filter((p) => p.statut === statut);
+    const nbPresents = presences.filter(isPresent).length;
     const mine = s.presences?.[state.me.id]?.statut || '';
     const day = new Date(s.date + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
-    const choice = (statut, label) =>
-      h('button', { class: `btn${mine === statut ? ` chosen-${statut}` : ''}`, type: 'button', 'aria-pressed': mine === statut ? 'true' : 'false', onclick: () => setPresence(id, mine === statut ? '' : statut) }, label);
+    const choice = (statut) =>
+      h('button', { class: `btn${mine === statut ? ` chosen-${statut}` : ''}`, type: 'button', 'aria-pressed': mine === statut ? 'true' : 'false', onclick: () => setPresence(id, mine === statut ? '' : statut) }, PRESENCE_LABELS[statut]);
+    const manque = EQUIPE_COMPLETE - nbPresents;
+    const objectifs = s.objectifs || [];
 
-    return h(
+    const card = h(
       'article',
-      { class: `seance${past ? ' past' : ''}` },
+      { class: `seance${past ? ' past' : ''}${s.map && MAP_BY_ID[s.map] ? ' with-image' : ''}` },
       h(
         'div',
         { class: 'seance-row' },
         h('div', { class: 'seance-when' }, h('strong', null, s.heure.replace(':', 'h')), h('span', null, dureeText(s.duree || 120))),
-        h('div', { class: 'seance-info' }, h('strong', null, day), h('span', { class: 'seance-type' }, s.type)),
-        !past && h('div', { class: 'seance-choice' }, choice('oui', 'Présent'), choice('non', 'Absent')),
+        h(
+          'div',
+          { class: 'seance-info' },
+          h('strong', null, day),
+          h('span', { class: 'seance-type' }, s.type, s.map ? ` · ${MAP_NAME[s.map]}` : '', s.serieTotal > 1 ? ` · série ${s.serieIndex + 1}/${s.serieTotal}` : '')
+        ),
+        !past && h('span', { class: `seance-badge ${manque <= 0 ? 'ok' : 'warn'}` }, manque <= 0 ? 'Séance confirmée' : `Il manque ${manque} joueur${manque > 1 ? 's' : ''}`),
         can('entrainements') && h('button', { class: 'btn', onclick: () => ((state.editing = `entrainements:${id}`), render()) }, 'Modifier'),
         can('entrainements') && h('button', { class: 'btn btn-danger', onclick: () => removeDoc('entrainements', id, 'Supprimer cette séance ?', 'Séance supprimée') }, 'Supprimer')
       ),
+      !past && h('div', { class: 'seance-choice' }, ['oui', 'retard', 'peutetre', 'non'].map(choice)),
       s.notes && h('p', { class: 'seance-notes' }, s.notes),
+      objectifs.length > 0 &&
+        h(
+          'ul',
+          { class: 'objectifs' },
+          objectifs.map((o, i) =>
+            h(
+              'li',
+              { class: o.fait ? 'fait' : '' },
+              can('entrainements')
+                ? h('label', null, h('input', { type: 'checkbox', checked: o.fait, onchange: () => toggleObjectif(id, s, i) }), o.texte)
+                : h('span', null, o.fait ? '✔ ' : '○ ', o.texte)
+            )
+          )
+        ),
+      s.map && MAP_BY_ID[s.map] && h('button', { class: 'btn btn-link', type: 'button', onclick: () => go('maps', { map: s.map, cote: 'tous' }) }, `Voir les strats de ${MAP_NAME[s.map]}`),
       h(
         'div',
         { class: 'seance-presences' },
-        h('span', { class: 'pres-oui' }, `${oui.length} présent${oui.length > 1 ? 's' : ''}`, oui.length ? ` : ${oui.map((p) => p.nom).join(', ')}` : ''),
-        non.length ? h('span', { class: 'pres-non' }, `${non.length} absent${non.length > 1 ? 's' : ''} : ${non.map((p) => p.nom).join(', ')}`) : null
+        h('span', { class: 'pres-oui' }, `${nbPresents} présent${nbPresents > 1 ? 's' : ''}`, nbPresents ? ` : ${presences.filter(isPresent).map((p) => p.nom + (p.statut === 'retard' ? ' (en retard)' : '')).join(', ')}` : ''),
+        by('peutetre').length ? h('span', { class: 'pres-peutetre' }, `Peut-être : ${by('peutetre').map((p) => p.nom).join(', ')}`) : null,
+        by('non').length ? h('span', { class: 'pres-non' }, `${by('non').length} absent${by('non').length > 1 ? 's' : ''} : ${by('non').map((p) => p.nom).join(', ')}`) : null
+      ),
+      past && state.editing === `bilan:${id}` && bilanForm(id, s),
+      past &&
+        state.editing !== `bilan:${id}` &&
+        (s.bilan?.texte || s.bilan?.note
+          ? h('div', { class: 'bilan' }, h('strong', null, 'Bilan ', s.bilan.note ? h('span', { class: 'stars' }, '★'.repeat(s.bilan.note) + '☆'.repeat(5 - s.bilan.note)) : null), s.bilan.texte && h('p', null, s.bilan.texte))
+          : null),
+      past && can('entrainements') && state.editing !== `bilan:${id}` && h('button', { class: 'btn btn-link', type: 'button', onclick: () => ((state.editing = `bilan:${id}`), render()) }, s.bilan?.texte || s.bilan?.note ? 'Modifier le bilan' : 'Écrire le bilan')
+    );
+    if (s.map && MAP_BY_ID[s.map]) card.style.backgroundImage = `linear-gradient(90deg, rgba(8,8,15,.94), rgba(8,8,15,.7)), url("${MAP_BY_ID[s.map].splash}")`;
+    return card;
+  }
+
+  // Assiduité : part des séances des 30 derniers jours où chaque joueur était présent.
+  function assiduite(all, today) {
+    const depuis = plusWeeks(today, -4);
+    const recentes = all.filter(([, s]) => s.date < today && s.date >= depuis).map(([, s]) => s);
+    if (!recentes.length) return null;
+    const joueurs = Object.entries(state.data.joueurs)
+      .map(([uid, j]) => {
+        const n = recentes.filter((s) => s.presences?.[uid] && isPresent(s.presences[uid])).length;
+        return { nom: j.discord || 'Joueur', n, pct: Math.round((n / recentes.length) * 100) };
+      })
+      .sort((a, b) => b.pct - a.pct);
+    return h(
+      'div',
+      { class: 'card assiduite' },
+      h('h3', null, 'Assiduité', h('span', { class: 'meta' }, ` · ${recentes.length} séance${recentes.length > 1 ? 's' : ''} sur les 4 dernières semaines`)),
+      joueurs.map((j) =>
+        h(
+          'div',
+          { class: 'assiduite-row' },
+          h('span', { class: 'assiduite-nom' }, j.nom),
+          h('span', { class: 'assiduite-barre' }, h('span', { style: `width:${j.pct}%`, class: j.pct >= 75 ? 'haut' : j.pct >= 40 ? 'moyen' : 'bas' })),
+          h('span', { class: 'assiduite-pct' }, `${j.pct} % (${j.n}/${recentes.length})`)
+        )
       )
     );
   }
@@ -1111,7 +1256,9 @@
         state.editing === 'entrainements:nouveau' && seanceForm(null, {}),
         upcoming.length ? upcoming.map(([id, s]) => seanceCard(id, s, false)) : state.editing !== 'entrainements:nouveau' && h('p', { class: 'empty-text' }, 'Aucune séance prévue.')
       ),
-      past.length > 0 && h('details', { class: 'past-seances' }, h('summary', null, 'Séances passées'), h('div', { class: 'matches' }, past.map(([id, s]) => seanceCard(id, s, true))))
+      assiduite(all, today),
+      past.length > 0 &&
+        h('details', { class: 'past-seances', open: past.some(([id]) => state.editing === `bilan:${id}`) }, h('summary', null, 'Séances passées et bilans'), h('div', { class: 'matches' }, past.map(([id, s]) => seanceCard(id, s, true))))
     );
   }
 
@@ -1137,7 +1284,7 @@
     const mapCard = semaine
       ? homeCard('Map de la semaine', MAP_NAME[semaine], `${nStrats} strat${nStrats > 1 ? 's' : ''} prête${nStrats > 1 ? 's' : ''}`, 'maps', { map: semaine, cote: 'tous' })
       : homeCard('Map de la semaine', 'Pas encore choisie', "L'IGL la choisit en haut de chaque onglet", 'maps');
-    if (semaine && MAP_BY_ID[semaine]) mapCard.style.backgroundImage = `linear-gradient(90deg, rgba(8,8,15,.92), rgba(8,8,15,.55)), url("${MAP_BY_ID[semaine].banniere}")`;
+    if (semaine && MAP_BY_ID[semaine]) mapCard.style.backgroundImage = `linear-gradient(90deg, rgba(8,8,15,.92), rgba(8,8,15,.55)), url("${MAP_BY_ID[semaine].splash}")`;
     if (semaine) mapCard.classList.add('with-image');
 
     // Prochain entraînement
@@ -1150,7 +1297,7 @@
       ? homeCard(
           'Prochain entraînement',
           `${new Date(next.date + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })} · ${next.heure.replace(':', 'h')}`,
-          `${next.type} · ${maReponse === 'oui' ? 'tu es noté présent' : maReponse === 'non' ? 'tu es noté absent' : 'indique ta présence'}`,
+          `${next.type}${next.map ? ` sur ${MAP_NAME[next.map]}` : ''} · ${maReponse ? `tu es noté : ${PRESENCE_LABELS[maReponse].toLowerCase()}` : 'indique ta présence'}`,
           'entrainements'
         )
       : homeCard('Prochain entraînement', 'Aucun de prévu', "L'IGL les planifie dans l'onglet Entraînements", 'entrainements');
